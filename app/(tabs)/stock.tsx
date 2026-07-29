@@ -12,13 +12,18 @@ import StockProductCard, { type StockProductCardItem } from "@/components/StockP
 
 type Row = StockProductCardItem;
 
+function toSentenceCase(s: string): string {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
 function toRows(packages: Package[]): Row[] {
   // The backend can return several packages with the same name for a user, and
   // makeClientId is name-based — disambiguate so React keys stay unique.
   const seen = new Map<string, number>();
   return packages
     .map((p) => {
-      const name = String(p?.package_name ?? "").trim();
+      const name = toSentenceCase(String(p?.package_name ?? "").trim());
       if (!name) return null;
       const qty = Number.isFinite(Number(p?.quantity)) ? Math.max(0, Math.floor(Number(p.quantity))) : 0;
       const baseId = makeClientId(p);

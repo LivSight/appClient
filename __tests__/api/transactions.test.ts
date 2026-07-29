@@ -1,13 +1,3 @@
-jest.mock("@/lib/api/client", () => ({
-  apiFetch: jest.fn(),
-}));
-
-jest.mock("@/lib/auth/session", () => ({
-  authSession: {
-    getSessionUser: jest.fn(),
-  },
-}));
-
 import { apiFetch } from "@/lib/api/client";
 import { authSession } from "@/lib/auth/session";
 import {
@@ -24,6 +14,16 @@ import {
   resolveApiSourceField,
   type TransactionRequest,
 } from "@/lib/api/transactions";
+
+jest.mock("@/lib/api/client", () => ({
+  apiFetch: jest.fn(),
+}));
+
+jest.mock("@/lib/auth/session", () => ({
+  authSession: {
+    getSessionUser: jest.fn(),
+  },
+}));
 
 const API_BASE = "http://localhost:4040";
 const KEYCLOAK_ID = "5785160a-6c5c-44d5-96fd-d28aa677d8d4";
@@ -79,18 +79,46 @@ describe("buildPayloadFromPickupResume", () => {
     const payload = buildPayloadFromPickupResume({
       forExpedition: true,
       packageName: "Colis",
-      description: "Ramassage: Agence",
+      description: "Ramassage: Général Express | Rue 12",
       phone: "670000000",
       express: "no",
       collectCash: "no",
       amount: 0,
       quantity: 1,
-      pickupStreet: "Agence",
+      pickupStreet: "Général Express | Rue 12",
       dropoffStreet: "Ville",
       scheduledDeliveryDate: SCHEDULED_DATE,
     });
     expect(payload.type).toBe("expedition");
     expect(payload.source).toBe("pickup");
+  });
+
+  it("expedition ramassage: never COD, no auto fee, destination copies departure", () => {
+    const payload = buildPayloadFromPickupResume({
+      forExpedition: true,
+      packageName: "Colis",
+      description: "Ramassage: Général Express | Rue 12",
+      phone: "670000000",
+      express: "yes",
+      collectCash: "yes",
+      amount: 9999,
+      quantity: 1,
+      pickupStreet: "Général Express | Rue 12",
+      pickupLandmark: "repère",
+      dropoffStreet: "Bastos",
+      dropoffLandmark: "portail rouge",
+      city: "Douala",
+      scheduledDeliveryDate: SCHEDULED_DATE,
+    });
+    expect(payload.amount).toBe(0);
+    expect(payload.cash_collect).toBe(false);
+    expect(payload.serviceLevel).toBe("standard");
+    expect(payload.departure_street).toBe("Général Express | Rue 12");
+    expect(payload.destination_street).toBe("Général Express | Rue 12");
+    expect(payload.departure_city).toBe("Douala");
+    expect(payload.destination_city).toBe("Douala");
+    expect(payload.departure_landmark).toBeUndefined();
+    expect(payload.destination_landmark).toBeUndefined();
   });
 });
 
@@ -137,6 +165,35 @@ describe("buildPayloadFromStockResume", () => {
       { package_name: "Prod A", quantity: 2 },
       { package_name: "Prod B", quantity: 1 },
     ]);
+  });
+
+  it("expedition stock: never COD, destination copies departure 'Agence | adresse'", () => {
+    const payload = buildPayloadFromStockResume({
+      forExpedition: true,
+      lineItems: [{ package_name: "Robe", quantity: 2 }],
+      description: "",
+      phone: "670000000",
+      receiverName: "Jean",
+      express: "yes",
+      collectCash: "yes",
+      amount: 5000,
+      destinationQuartier: "Bastos",
+      destinationLandmark: "près du rond-point",
+      departureCity: "Douala",
+      departureStreet: "Général Express | Ongola Express — Mvan",
+      scheduledDeliveryDate: SCHEDULED_DATE,
+    });
+    expect(payload.type).toBe("expedition");
+    expect(payload.source).toBe("stock");
+    expect(payload.amount).toBe(0);
+    expect(payload.cash_collect).toBe(false);
+    expect(payload.serviceLevel).toBe("standard");
+    expect(payload.departure_street).toBe("Général Express | Ongola Express — Mvan");
+    expect(payload.destination_street).toBe("Général Express | Ongola Express — Mvan");
+    expect(payload.departure_city).toBe("Douala");
+    expect(payload.destination_city).toBe("Douala");
+    expect(payload.destination_landmark).toBeUndefined();
+    expect(payload.quantity).toBe(2);
   });
 });
 

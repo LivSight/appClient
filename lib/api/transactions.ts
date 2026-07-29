@@ -2,6 +2,7 @@ import { API_BASE_URL } from "@/lib/config/api";
 import { logger } from "@/lib/logger";
 import { apiFetch } from "@/lib/api/client";
 import { authSession } from "@/lib/auth/session";
+import { STOCK_DEPARTURE_STREET } from "@/lib/api/companySettings";
 
 export type UiMode = "stock" | "pickup";
 export type TransactionSource = "pickup" | "stock";
@@ -380,6 +381,35 @@ export function buildPayloadFromStockResume(input: StockResumePayloadInput): Tra
   const first = lineItems[0];
   const totalQty =
     lineItems.length > 0 ? sumTransactionItemQuantities(lineItems) : Math.max(1, input.quantity ?? 1);
+
+  if (input.forExpedition) {
+    // Expédition (Phase 2) : jamais de COD (amount_due = 0, cash_collect = false forcés backend),
+    // pas de quartier ni de tarif auto — destination = copie du départ "Agence | adresse".
+    const ville = input.departureCity?.trim() || "Yaoundé";
+    const region = input.departureRegion?.trim() || "Centre";
+    const departure_street = input.departureStreet.trim() || STOCK_DEPARTURE_STREET;
+    return {
+      package_name: first?.package_name.trim() || itemsLine.split(",")[0]?.trim() || "Colis",
+      description: input.description.trim() || "Aucune description donnée",
+      destination_street: departure_street,
+      receiver_name: input.receiverName?.trim() || "Client",
+      receiver_phone: input.phone.trim(),
+      source: "stock",
+      type: "expedition",
+      quantity: totalQty,
+      items: lineItems.length ? lineItems : undefined,
+      amount: 0,
+      scheduled_delivery_date: input.scheduledDeliveryDate,
+      cash_collect: false,
+      serviceLevel: "standard",
+      departure_city: ville,
+      departure_region: region,
+      departure_street,
+      destination_city: ville,
+      destination_region: region,
+    };
+  }
+
   const destination_street = input.destinationQuartier.trim() || "—";
   return {
     package_name: first?.package_name.trim() || itemsLine.split(",")[0]?.trim() || "Colis",
@@ -398,7 +428,7 @@ export function buildPayloadFromStockResume(input: StockResumePayloadInput): Tra
     serviceLevel: mapExpressToServiceLevel(input.express),
     departure_city: input.departureCity ?? "Yaoundé",
     departure_region: input.departureRegion ?? "Centre",
-    departure_street: input.departureStreet.trim() || "Agence | Ongola Express",
+    departure_street: input.departureStreet.trim() || STOCK_DEPARTURE_STREET,
     destination_city: input.destinationCity ?? "Yaoundé",
     destination_region: input.destinationRegion ?? "Centre",
   };
@@ -424,6 +454,33 @@ export type PickupResumePayloadInput = {
 };
 
 export function buildPayloadFromPickupResume(input: PickupResumePayloadInput): TransactionRequest {
+  if (input.forExpedition) {
+    // Expédition (Phase 2) : jamais de COD, pas de quartier ni de tarif auto —
+    // départ = "Agence | adresse client", destination = copie du départ.
+    const ville = input.city?.trim() || "Yaoundé";
+    const region = input.region?.trim() || "Centre";
+    const departure_street = input.pickupStreet.trim() || "—";
+    return {
+      package_name: input.packageName.trim() || "Colis",
+      description: input.description.trim() || "Aucune description donnée",
+      destination_street: departure_street,
+      receiver_name: input.receiverName?.trim() || "Client",
+      receiver_phone: input.phone.trim(),
+      source: "pickup",
+      type: "expedition",
+      quantity: input.quantity,
+      amount: 0,
+      scheduled_delivery_date: input.scheduledDeliveryDate,
+      cash_collect: false,
+      serviceLevel: "standard",
+      departure_city: ville,
+      departure_region: region,
+      departure_street,
+      destination_city: ville,
+      destination_region: region,
+    };
+  }
+
   return {
     package_name: input.packageName.trim() || "Colis",
     description: input.description.trim() || "Aucune description donnée",

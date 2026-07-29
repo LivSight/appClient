@@ -1,34 +1,23 @@
 import { Pressable, View } from "react-native";
-import { colors, fonts, radii, typography } from "../theme/tokens";
+import { colors, fonts, radii } from "../theme/tokens";
 import AppText from "./AppText";
-import SolarIcon from "./SolarIcon";
 
 type Props = {
-  locationLabel: string;
   onProfilePress?: () => void;
   initials?: string;
 };
 
-export default function HomeTopBar({ locationLabel, onProfilePress, initials }: Props) {
+export default function HomeTopBar({ onProfilePress, initials }: Props) {
   return (
     <View
       style={{
         minHeight: 52,
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
+        justifyContent: "flex-end",
         marginBottom: 14,
       }}
     >
-      <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <SolarIcon name="solar:map-point-outline" size={24} color={colors.primary} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <AppText variant="dense" style={{ ...typography.bodyRegular, fontFamily: fonts.bodySemi, fontSize: 14, lineHeight: 20 }} numberOfLines={1} ellipsizeMode="tail">
-            {locationLabel}
-          </AppText>
-        </View>
-      </View>
-
       <Pressable
         hitSlop={10}
         onPress={onProfilePress}
@@ -39,7 +28,6 @@ export default function HomeTopBar({ locationLabel, onProfilePress, initials }: 
           backgroundColor: "#EDEEEF",
           alignItems: "center",
           justifyContent: "center",
-          marginLeft: 12,
         }}
       >
         <AppText variant="dense" style={{ fontSize: 14, fontFamily: fonts.bodyBold, color: colors.text }} numberOfLines={1}>

@@ -11,7 +11,6 @@ import TransactionDetailCardExpedition from "../../components/TransactionDetailC
 import { card } from "../../theme/styles";
 import { colors, fonts, radii, typography } from "../../theme/tokens";
 import { hapticLight } from "@/lib/haptics";
-import { featureFlags } from "@/lib/featureFlags";
 import AppText from "../../components/AppText";
 import { getTransactionById, getTransactionNavigationId, mapTxnStatusToUi, type Transaction } from "@/lib/api/transactions";
 import { scheduledDeliveryLabelFromTransaction } from "@/lib/api/transactionUi";
@@ -284,10 +283,6 @@ export default function ExpeditionDetailScreen() {
               onPress={() => {
                 if (!expedition?.id) return;
                 void hapticLight();
-                if (!featureFlags.messagingEnabled) {
-                  Alert.alert("Bientôt disponible", "La messagerie n’est pas disponible pour le moment.");
-                  return;
-                }
                 router.push({ pathname: "/inbox/[id]", params: { id: String(expedition.id), intent: "report" } });
               }}
               style={{
