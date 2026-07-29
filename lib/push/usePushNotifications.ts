@@ -13,7 +13,6 @@ import {
   resolveClientPushRoute,
 } from "@/lib/push/notificationRouting";
 import { resolveTransactionDetailPath } from "@/lib/push/resolveTransactionDetailPath";
-import { featureFlags } from "@/lib/featureFlags";
 
 async function navigateFromNotificationResponse(
   router: ReturnType<typeof useRouter>,
@@ -24,11 +23,8 @@ async function navigateFromNotificationResponse(
   if (!route) return;
 
   if (route.screen === "inbox") {
-    if (featureFlags.messagingEnabled) {
-      router.push({ pathname: "/inbox/[id]", params: { id: route.transactionId } });
-      return;
-    }
-    // Messaging disabled: fall back to transaction detail instead of opening inbox.
+    router.push({ pathname: "/inbox/[id]", params: { id: route.transactionId } });
+    return;
   }
 
   const detailPath = await resolveTransactionDetailPath(route.transactionId);

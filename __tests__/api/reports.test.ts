@@ -1,3 +1,15 @@
+import { apiFetch } from "@/lib/api/client";
+import { authSession } from "@/lib/auth/session";
+import {
+  buildReportPdfRequest,
+  fetchDeliveryReport,
+  fetchExpeditionReport,
+  fetchSettlementReport,
+  sourceCountsFromDeliveries,
+  statusBucketsFromSummary,
+  toReportDateParam,
+} from "@/lib/api/reports";
+
 jest.mock("@/lib/api/client", () => ({
   apiFetch: jest.fn(),
 }));
@@ -8,16 +20,6 @@ jest.mock("@/lib/auth/session", () => ({
     getAccessToken: jest.fn(),
   },
 }));
-
-import { apiFetch } from "@/lib/api/client";
-import { authSession } from "@/lib/auth/session";
-import {
-  buildReportPdfRequest,
-  fetchDeliveryReport,
-  sourceCountsFromDeliveries,
-  statusBucketsFromSummary,
-  toReportDateParam,
-} from "@/lib/api/reports";
 
 const API_BASE = "http://localhost:4040";
 const KEYCLOAK_ID = "5785160a-6c5c-44d5-96fd-d28aa677d8d4";
@@ -115,6 +117,65 @@ describe("fetchDeliveryReport", () => {
   });
 });
 
+describe("fetchExpeditionReport", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authSession.getSessionUser as jest.Mock).mockResolvedValue({ keycloakId: KEYCLOAK_ID });
+  });
+
+  it("GETs /api/reports/expeditions and returns the Phase 3 aggregates", async () => {
+    mockApiResponse(200, {
+      expedition_count: 3,
+      total_transport: 8000,
+      total_main_agence: 1500,
+      total_a_facturer: 9500,
+      fees_pending_count: 1,
+    });
+
+    const report = await fetchExpeditionReport("2026-07-01", "2026-07-09");
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      `${API_BASE}/api/reports/expeditions?start_date=2026-07-01&end_date=2026-07-09`,
+      { method: "GET", headers: { "X-User-Id": KEYCLOAK_ID } },
+    );
+    expect(report.expedition_count).toBe(3);
+    expect(report.total_a_facturer).toBe(9500);
+    expect(report.fees_pending_count).toBe(1);
+  });
+});
+
+describe("fetchSettlementReport", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authSession.getSessionUser as jest.Mock).mockResolvedValue({ keycloakId: KEYCLOAK_ID });
+  });
+
+  it("GETs /api/reports/settlement and returns net_a_reverser with embedded reports", async () => {
+    mockApiResponse(200, {
+      total_encaisse_brut: 42000,
+      total_frais_livraison: 6000,
+      solde_livraisons: 36000,
+      total_frais_expedition: 3800,
+      net_a_reverser: 32200,
+      delivered_count: 5,
+      delivery_count: 7,
+      expedition_count: 2,
+      deliveries: { delivery_count: 7, total_encaisse: 36000 },
+      expeditions: { expedition_count: 2, total_a_facturer: 3800, fees_pending_count: 1 },
+    });
+
+    const report = await fetchSettlementReport("2026-07-01", "2026-07-09");
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      `${API_BASE}/api/reports/settlement?start_date=2026-07-01&end_date=2026-07-09`,
+      { method: "GET", headers: { "X-User-Id": KEYCLOAK_ID } },
+    );
+    expect(report.net_a_reverser).toBe(32200);
+    expect(report.deliveries?.delivery_count).toBe(7);
+    expect(report.expeditions?.fees_pending_count).toBe(1);
+  });
+});
+
 describe("buildReportPdfRequest", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -130,5 +191,23 @@ describe("buildReportPdfRequest", () => {
     );
     expect(req.headers).toEqual({ "X-User-Id": KEYCLOAK_ID, Authorization: "Bearer token-123" });
     expect(req.fileName).toBe("LivSight_Rapport-Livraisons_2026-07-01_au_2026-07-09.pdf");
+  });
+
+  it("builds the expeditions PDF URL and file name", async () => {
+    const req = await buildReportPdfRequest("expeditions", "2026-07-01", "2026-07-09");
+
+    expect(req.url).toBe(
+      `${API_BASE}/api/reports/expeditions/pdf?start_date=2026-07-01&end_date=2026-07-09&download=true`,
+    );
+    expect(req.fileName).toBe("LivSight_Rapport-Expeditions_2026-07-01_au_2026-07-09.pdf");
+  });
+
+  it("builds the settlement PDF URL and file name", async () => {
+    const req = await buildReportPdfRequest("settlement", "2026-07-01", "2026-07-09");
+
+    expect(req.url).toBe(
+      `${API_BASE}/api/reports/settlement/pdf?start_date=2026-07-01&end_date=2026-07-09&download=true`,
+    );
+    expect(req.fileName).toBe("LivSight_Releve-Solde_2026-07-01_au_2026-07-09.pdf");
   });
 });

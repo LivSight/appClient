@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useLoadEffect } from "@/lib/hooks/useLoadEffect";
-import { Alert, Pressable, View } from "react-native";
+import { Alert, Platform, Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import ScreenLayout from "@/components/ScreenLayout";
 import AppText from "@/components/AppText";
@@ -13,7 +13,7 @@ import {
   getTransactionById,
 } from "@/lib/api/transactions";
 import { hapticSuccess } from "@/lib/haptics";
-import { colors, fonts, radii, spacing, typography } from "@/theme/tokens";
+import { colors, fonts, radii, shadows, spacing, typography } from "@/theme/tokens";
 
 type ReasonId = "unreachable" | "damaged" | "changed_mind" | "other";
 
@@ -45,13 +45,9 @@ function ReasonRow({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        borderWidth: selected ? 2 : 0,
-        borderColor: selected ? colors.primary : "transparent",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
+        ...shadows.card,
+        borderWidth: selected ? 2 : undefined,
+        borderColor: selected ? colors.primary : undefined,
       }}
       hitSlop={8}
     >

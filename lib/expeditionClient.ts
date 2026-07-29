@@ -33,3 +33,11 @@ export function parseExpeditionClient(raw: string | undefined): ExpeditionClient
 export function isExpeditionService(service: string | undefined): boolean {
   return service === SERVICE_EXPEDITION;
 }
+
+/** Contrat backend Phase 2 : departure_street / destination_street stockés au format "Agence | adresse". */
+export function buildExpeditionDepartureStreet(agence: string, pickupAddress: string): string {
+  const a = agence.trim();
+  const p = pickupAddress.trim();
+  if (a && p) return `${a} | ${p}`;
+  return p || a;
+}

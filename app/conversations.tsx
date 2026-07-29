@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { View, Pressable, RefreshControl } from "react-native";
 import { router } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
@@ -21,7 +21,6 @@ import {
 import { shouldRefreshConversations } from "@/lib/push/notificationRouting";
 import { usePushRefresh } from "@/lib/push/usePushRefresh";
 import { useUnreadCount } from "@/lib/unreadCount";
-import { featureFlags } from "@/lib/featureFlags";
 
 type ConversationStatusFilter = "Toutes" | "Non lues" | "Livraisons" | "Expéditions";
 
@@ -47,11 +46,6 @@ export default function ConversationsScreen() {
   const [statusFilter, setStatusFilter] = useState<ConversationStatusFilter>("Toutes");
   // Defaults to today's activity, like Mes Courses; "Toutes dates" is opt-in.
   const [dateFilter, setDateFilter] = useState<TransactionDateFilter>("Aujourd'hui");
-
-  useEffect(() => {
-    if (featureFlags.messagingEnabled) return;
-    router.replace("/(tabs)");
-  }, []);
 
   const [conversations, setConversations] = useState<EnrichedConversationItem[]>([]);
   const [loading, setLoading] = useState(true);

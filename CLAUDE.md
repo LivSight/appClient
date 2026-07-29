@@ -17,7 +17,15 @@ npm run eas:build:preview:android # Preview APK (internal distribution)
 npm run eas:build:production     # Production builds for both platforms
 ```
 
-No test framework is configured.
+### Testing (mandatory TDD)
+
+```bash
+npm test               # Jest — must pass before any PR
+npm run test:watch     # Watch mode during development
+npm run test:coverage  # Coverage report (focus on lib/)
+```
+
+Tests mirror `lib/` structure under `__tests__/`. TDD is mandatory — see `.cursor/rules/tdd-mandatory.mdc`.
 
 ## Environment
 
