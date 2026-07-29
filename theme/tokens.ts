@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 // ─── Colors ──────────────────────────────────────────────────────────────────
 export const colors = {
   bg: "#F8F9FA",
@@ -40,14 +42,27 @@ export const spacing = {
 
 // ─── Shadows ─────────────────────────────────────────────────────────────────
 export const shadows = {
-  card: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-} as const;
+  card: Platform.select({
+    ios: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+    },
+    android: {
+      elevation: 2,
+      borderWidth: 1,
+      borderColor: "#E2E8F0", // colors.cardStroke — inlined to avoid forward-reference
+    },
+    default: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+  })!,
+};
 
 export const fonts = {
   titleBold: "Palanquin_700Bold",

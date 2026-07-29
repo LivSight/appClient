@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { computeTotalUnreadCount } from "@/lib/api/inbox";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { featureFlags } from "@/lib/featureFlags";
 import { shouldRefreshConversations } from "@/lib/push/notificationRouting";
 import { usePushRefresh } from "@/lib/push/usePushRefresh";
 
@@ -26,7 +25,6 @@ export function UnreadCountProvider({ children }: { children: ReactNode }) {
   const [totalUnread, setTotalUnread] = useState(0);
 
   const refreshUnread = useCallback(async () => {
-    if (!featureFlags.messagingEnabled) return;
     if (!isAuthenticated) return;
     try {
       setTotalUnread(await computeTotalUnreadCount());
@@ -36,27 +34,35 @@ export function UnreadCountProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!featureFlags.messagingEnabled) {
-      setTotalUnread(0);
-      return;
-    }
-    if (!isAuthenticated) {
-      setTotalUnread(0);
-      return;
-    }
-    void refreshUnread();
-  }, [isAuthenticated, refreshUnread]);
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const count = await computeTotalUnreadCount();
+        if (!cancelled) setTotalUnread(count);
+      } catch {
+        // keep the last known badge on transient errors
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 
   usePushRefresh(
-    useCallback((payload) => (featureFlags.messagingEnabled ? shouldRefreshConversations(payload) : false), []),
+    useCallback((payload) => shouldRefreshConversations(payload), []),
     useCallback(() => {
       void refreshUnread();
     }, [refreshUnread]),
   );
 
   const value = useMemo<UnreadCountContextValue>(
-    () => ({ totalUnread, setTotalUnread, refreshUnread }),
-    [totalUnread, refreshUnread],
+    () => ({
+      totalUnread: isAuthenticated ? totalUnread : 0,
+      setTotalUnread,
+      refreshUnread,
+    }),
+    [isAuthenticated, totalUnread, refreshUnread],
   );
 
   return <UnreadCountContext.Provider value={value}>{children}</UnreadCountContext.Provider>;

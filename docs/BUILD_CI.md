@@ -1,21 +1,19 @@
-# LivSight Client — CI/CD & builds (EAS)
+# LivSight Client — CI & builds EAS
 
-Guide de référence pour les agents et développeurs : comment les builds sont déclenchés, configurés et récupérés.
+Guide de référence : CI GitHub Actions (qualité) et builds EAS manuels.
 
-**Dernière mise à jour :** 2026-07-04
+**Dernière mise à jour :** 2026-07-29
 **Repo :** `livSight/appClient`
-**Stack :** Expo 54 · EAS Build · GitHub Actions
+**Stack :** Expo 56 · EAS Build · GitHub Actions
 
 ---
 
-## 1. Vue d’ensemble
+## 1. Vue d'ensemble
 
 ```mermaid
 flowchart LR
   subgraph gh [GitHub Actions]
     Q[quality: lint + test]
-    B[build: eas build Android]
-    Q --> B
   end
 
   subgraph branches [Branches]
@@ -24,26 +22,24 @@ flowchart LR
     MN[main]
   end
 
+  subgraph manual [Manuel]
+    EAS[EAS Build CLI / expo.dev]
+  end
+
   PR --> Q
   ST --> Q
-  ST --> B
   MN --> Q
-  MN --> B
-
-  B --> EAS[EAS Cloud]
-  EAS --> APK[APK interne]
+  ST --> EAS
+  MN --> EAS
 ```
 
-| Canal | Déclencheur | Build EAS | Plateforme |
-|-------|-------------|-----------|------------|
-| **CI qualité** | push, PR, manuel | Non | — |
-| **CI build staging** | push sur `staging` | `preview` | Android APK |
-| **CI build prod** | push sur `main` | `production` | Android AAB |
-| **Local dev** | manuel (`npm run eas:build:dev:*`) | `development` | Android / iOS |
+| Canal | Déclencheur | Action |
+|-------|-------------|--------|
+| **CI** | push, PR, `workflow_dispatch` | lint + tests uniquement |
+| **Build EAS** | manuel (`npm run eas:build:*` ou dashboard Expo) | APK / AAB / IPA |
 
-**Non couvert par la CI actuelle :**
-- Builds iOS automatiques
-- Builds sur branches `feature/*` (sauf lint/test via PR)
+**Non automatisé (volontaire) :**
+- Builds EAS sur push `staging` / `main`
 - Soumission App Store / Play Store (`eas submit`)
 
 ---
@@ -52,67 +48,50 @@ flowchart LR
 
 | Fichier | Rôle |
 |---------|------|
-| `.github/workflows/eas-build.yml` | Pipeline GitHub Actions |
+| `.github/workflows/ci.yml` | Pipeline GitHub Actions (lint + test) |
 | `eas.json` | Profils EAS (`development`, `preview`, `production`) |
 | `app.config.js` | Variantes staging/prod (nom app, package Android, Firebase) |
 | `app.json` | Config Expo de base (plugins, permissions, bundle id iOS) |
-| `package.json` | Scripts `eas:build:*` pour builds locaux |
+| `package.json` | Scripts `eas:build:*` pour builds manuels |
 
 ---
 
 ## 3. Pipeline GitHub Actions
 
-Fichier : `.github/workflows/eas-build.yml`
+Fichier : `.github/workflows/ci.yml`
 
-### 3.1 Déclencheurs
+### Déclencheurs
 
 - `push` (toutes branches)
 - `pull_request`
-- `workflow_dispatch` (lancement manuel depuis l’onglet Actions)
+- `workflow_dispatch` (lancement manuel depuis l'onglet Actions)
 
-### 3.2 Job `quality` (toujours exécuté)
+### Job `quality`
 
 1. Node **20**, `npm ci`
 2. `npm run lint` (`expo lint`)
 3. `npm test -- --ci --passWithNoTests` (Jest, tests sous `__tests__/**`)
 
-### 3.3 Job `build` (conditionnel)
-
-Conditions **toutes** requises :
-
-- `needs: quality` (le job qualité doit réussir)
-- `github.event_name == 'push'` (pas sur les PR)
-- Branche = `staging` **ou** `main`
-
-Étapes :
-
-1. `expo/expo-github-action@v8` avec `secrets.EXPO_TOKEN`
-2. `npm ci`
-3. Si `staging` → `eas build --platform android --profile preview --non-interactive --no-wait`
-4. Si `main` → `eas build --platform android --profile production --non-interactive --no-wait`
-
-**`--no-wait`** : le job GitHub se termine dès que le build est **mis en file** sur EAS ; il n’attend pas la fin de la compilation. Suivre l’avancement sur [expo.dev](https://expo.dev).
+Aucun secret GitHub requis pour la CI.
 
 ---
 
 ## 4. Profils EAS (`eas.json`)
 
-### 4.1 `development` (local uniquement)
+### `development` (dev client local)
 
 - **Usage :** dev client avec Metro (`npm run start:dev`)
 - `developmentClient: true`
 - Distribution interne, APK Android
-- iOS : appareil physique (`simulator: false`)
-- **Pas de variables d’environnement gateway** dans `eas.json` → utiliser `.env` local
+- **Pas de variables gateway** dans `eas.json` → utiliser `.env` local
 
 ```bash
 npm run eas:build:dev:android
 npm run eas:build:dev:ios
+npm run start:dev
 ```
 
-### 4.2 `preview` (staging)
-
-Déclenché par la CI sur push `staging`.
+### `preview` (staging — manuel)
 
 | Variable | Valeur |
 |----------|--------|
@@ -123,9 +102,12 @@ Déclenché par la CI sur push `staging`.
 - Distribution : **internal** (lien de téléchargement EAS)
 - Android : **APK**
 
-### 4.3 `production`
+```bash
+npm run eas:build:preview:android
+npm run eas:build:preview:ios
+```
 
-Déclenché par la CI sur push `main`.
+### `production` (stores — manuel)
 
 | Variable | Valeur |
 |----------|--------|
@@ -133,18 +115,25 @@ Déclenché par la CI sur push `main`.
 | `EXPO_PUBLIC_GATEWAY_URL` | `https://gateway.livsight.com` |
 | `EXPO_PUBLIC_ENABLE_PUSH` | `true` |
 
-- Distribution : **store** — Android produit un **AAB** (`buildType: "app-bundle"`) destiné au Play Store (les pistes de test Play n'acceptent que les AAB, pas les APK)
-- Pour un APK sideloadable (testeurs hors Play), utiliser le profil `preview`
+- Distribution : **store** — Android **AAB**, iOS **IPA**
+- `autoIncrement: true` (build numbers gérés par EAS)
 
 ```bash
-npm run eas:build:preview:android
-npm run eas:build:preview:ios
-npm run eas:build:production   # Android + iOS, manuel
+npm run eas:build:production   # Android + iOS
 ```
+
+### Soumission stores
+
+```bash
+npx eas-cli submit --platform ios --latest
+npx eas-cli submit --platform android --latest
+```
+
+Profil `submit.production` dans `eas.json` pour Android (track internal).
 
 ---
 
-## 5. Variantes d’app (`app.config.js`)
+## 5. Variantes d'app (`app.config.js`)
 
 `APP_VARIANT=staging` (profil `preview`) modifie la config au build :
 
@@ -153,19 +142,13 @@ npm run eas:build:production   # Android + iOS, manuel
 | Nom affiché | livsight | livsight Staging |
 | Package Android | `com.livsight.client` | `com.livsight.client.staging` |
 | URL scheme | `livsight` | `livsight-staging` |
-| Bundle iOS | `com.ericdt17.livsightclient` | inchangé (même bundle id) |
 
 Les deux variantes Android peuvent être **installées côte à côte** sur le même appareil.
 
 ### Firebase Android (`google-services.json`)
 
 - Fichier **gitignoré** → absent des builds EAS sauf secret.
-- `app.config.js` lit :
-  1. `process.env.GOOGLE_SERVICES_JSON` (secret EAS fichier), ou
-  2. `./google-services.json` en local, ou
-  3. supprime la clé si absent (build sans push FCM Android).
-
-Créer le secret EAS :
+- Secret EAS : `GOOGLE_SERVICES_JSON` (type file)
 
 ```bash
 eas secret:create --scope project --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json
@@ -173,134 +156,52 @@ eas secret:create --scope project --name GOOGLE_SERVICES_JSON --type file --valu
 
 ---
 
-## 6. Secrets & prérequis
+## 6. Workflows courants
 
-### 6.1 GitHub (obligatoire pour la CI build)
+### Développer une feature
 
-| Secret | Où | Description |
-|--------|-----|-------------|
-| `EXPO_TOKEN` | GitHub → Settings → Secrets and variables → Actions | Token Expo avec accès EAS ([expo.dev/settings/access-tokens](https://expo.dev/settings/access-tokens)) |
+1. Push / PR → **lint + tests** (CI automatique)
+2. Dev local : `npx expo run:ios` / `npx expo run:android` ou dev client EAS + `npm run start:dev`
+3. Gateway locale via `EXPO_PUBLIC_GATEWAY_URL` dans `.env`
 
-Sans ce secret, le job `build` échoue à l’étape « Setup EAS ».
-
-### 6.2 EAS (recommandé pour push Android)
-
-| Secret | Type | Description |
-|--------|------|-------------|
-| `GOOGLE_SERVICES_JSON` | file | Fichier Firebase pour FCM Android |
-
-### 6.3 Local (développement)
-
-Copier `.env.example` → `.env` (non versionné, gitignoré). Variables courantes :
-
-```bash
-EXPO_PUBLIC_GATEWAY_URL=http://<LAN_IP>:4040
-EXPO_PUBLIC_ENABLE_PUSH=true
-```
-
-Les variables `EXPO_PUBLIC_*` sont **inlinées au build** ; un changement d’URL gateway nécessite un **nouveau build** (pas seulement Metro) pour les APK `preview`/`production`. Avec le dev client + Metro, `.env` est lu au démarrage de Metro.
-
----
-
-## 7. Récupérer un build
-
-### Après un push CI
-
-1. Ouvrir [expo.dev](https://expo.dev) → compte `ericdt17` → projet **livsight**
-2. Onglet **Builds** → filtrer par profil (`preview` ou `production`)
-3. Télécharger l’**APK** une fois le statut `FINISHED`
-
-### En CLI
-
-```bash
-npx eas-cli build:list --platform android --limit 5
-npx eas-cli build:view <BUILD_ID>
-```
-
-### Lien interne
-
-Les profils `preview` et `production` utilisent `distribution: internal` : EAS génère un QR code / URL de téléchargement pour testeurs.
-
----
-
-## 8. Workflows courants
-
-### Développer une feature (ex. `feature/messaging`)
-
-1. Push / PR → **lint + tests** uniquement (pas de build EAS)
-2. Dev local : build dev client une fois, puis `npm run start:dev -- -c`
-3. Tester contre gateway locale via `EXPO_PUBLIC_GATEWAY_URL` dans `.env`
-
-### Livrer en staging
+### Tester en staging
 
 1. Merger dans `staging`
-2. CI : quality → `eas build --profile preview`
-3. Installer l’APK **livsight Staging** sur appareil test
+2. Build manuel : `npm run eas:build:preview:android`
+3. Installer l'APK **livsight Staging** sur appareil test
 4. Vérifier connexion à `staging-gateway.livsight.com`
 
 ### Livrer en production
 
 1. Merger `staging` → `main`
-2. CI : quality → `eas build --profile production`
-3. Récupérer l’AAB prod sur expo.dev (destiné au Play Store, non sideloadable)
-4. *(Futur)* `eas submit` pour Play Store — profil `submit.production` encore vide
-
-### Build iOS manuel
-
-```bash
-npm run eas:build:preview:ios    # staging
-npm run eas:build:production     # prod (android + ios)
-```
-
-Compte Apple / certificats doivent être configurés dans EAS (première fois interactive).
+2. Build manuel : `npm run eas:build:production`
+3. Récupérer AAB/IPA sur [expo.dev](https://expo.dev)
+4. Soumettre : `npx eas-cli submit --platform all --latest`
 
 ---
 
-## 9. Dépannage
-
-| Symptôme | Cause probable | Action |
-|----------|----------------|--------|
-| Job `build` absent | Push sur `feature/*` | Normal ; merger vers `staging`/`main` (build ne part que si branche staging/main) |
-| `Setup EAS` failed | `EXPO_TOKEN` manquant/expiré | Regénérer le token Expo, mettre à jour le secret GitHub |
-| Build EAS `FAILED` | Credentials Android / Firebase | Voir logs sur expo.dev ; vérifier `GOOGLE_SERVICES_JSON` |
-| Push ne marche pas sur l’APK | Mauvais profil / gateway | Vérifier `EXPO_PUBLIC_GATEWAY_URL` du profil dans `eas.json` |
-| App pointe vers localhost en prod | Mauvais profil build | Ne pas installer un build `development` en prod |
-| CI vert mais pas d’APK | `--no-wait` | Attendre la fin sur expo.dev (découplé de GitHub) |
-| Deux apps Android | Staging + prod | Packages différents ; comportement voulu |
-
----
-
-## 10. Commandes rapides
+## 7. Commandes rapides
 
 ```bash
 # Qualité (identique à la CI)
 npm ci && npm run lint && npm test
 
-# Dev client (lourd, une fois par changement natif)
-npm run eas:build:dev:android
-npm run eas:build:dev:ios
+# Builds locaux (simulateur / émulateur)
+npx expo run:ios
+npx expo run:android
+npm run start:dev
 
-# Staging / prod (local, sans attendre la CI)
+# EAS (manuel)
 npm run eas:build:preview:android
 npm run eas:build:production
-
-# Metro avec dev client
-npm run start:dev -- -c
+npx eas-cli submit --platform all --latest
 ```
 
 ---
 
-## 11. Évolutions possibles (non implémentées)
-
-- Build iOS dans GitHub Actions (`eas build --platform ios`)
-- Build sur `workflow_dispatch` avec choix de profil
-- `eas build --wait` pour faire échouer la CI si le build EAS échoue
-- `eas submit` automatisé sur tag / release
-
----
-
-## 12. Références
+## 8. Références
 
 - [Expo EAS Build](https://docs.expo.dev/build/introduction/)
-- [expo-github-action](https://github.com/expo/expo-github-action)
+- [Expo EAS Submit](https://docs.expo.dev/submit/introduction/)
 - `CLAUDE.md` — architecture app, env vars, commandes dev
+- `README.md` — démarrage rapide

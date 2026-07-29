@@ -9,9 +9,10 @@ import CenteredScreenHeader from "../components/CenteredScreenHeader";
 import { card } from "../theme/styles";
 import { colors, fonts, typography } from "../theme/tokens";
 import { hapticSuccess } from "@/lib/haptics";
-import { isExpeditionService, parseExpeditionClient } from "@/lib/expeditionClient";
+import { buildExpeditionDepartureStreet, isExpeditionService, parseExpeditionClient } from "@/lib/expeditionClient";
 import { createTransaction, buildPayloadFromPickupResume } from "@/lib/api/transactions";
 import DeliveryFeeTotalCard from "../components/DeliveryFeeTotalCard";
+import ExpeditionFeesPendingCard from "../components/ExpeditionFeesPendingCard";
 import { useDeliveryFeeEstimate } from "@/lib/hooks/useDeliveryFeeEstimate";
 import {
   formatScheduledDeliveryDisplayLabel,
@@ -35,6 +36,8 @@ type Params = {
   pickupAmount?: string;
   service?: string;
   expeditionClient?: string;
+  expAgence?: string;
+  expPickupAddress?: string;
   scheduledDeliveryDate?: string;
 };
 
@@ -118,6 +121,8 @@ export default function ResumeProduitRamasseScreen() {
   const collectCash = params.pickupCollectCash === "yes" ? "yes" : "no";
   const amount = parseIntSafe(typeof params.pickupAmount === "string" ? params.pickupAmount : "");
   const forExpedition = isExpeditionService(typeof params.service === "string" ? params.service : undefined);
+  const expAgence = typeof params.expAgence === "string" ? params.expAgence : "";
+  const expPickupAddress = typeof params.expPickupAddress === "string" ? params.expPickupAddress : "";
   const expeditionClient = useMemo(
     () => parseExpeditionClient(typeof params.expeditionClient === "string" ? params.expeditionClient : undefined),
     [params.expeditionClient]
@@ -153,11 +158,18 @@ export default function ResumeProduitRamasseScreen() {
     return phone.trim().length ? phone.trim() : digits;
   }, [phone]);
 
+  // Expédition : départ au format backend "Agence | adresse client" (destination = copie du départ).
+  const expeditionDepartureStreet = useMemo(
+    () => buildExpeditionDepartureStreet(expAgence, expPickupAddress) || ramassageAddress.trim(),
+    [expAgence, expPickupAddress, ramassageAddress],
+  );
+
   const pickupAddressV2 = useMemo(() => {
+    if (forExpedition) return expeditionDepartureStreet || "—";
     const q = pickupPickupQuartier.trim();
     const l = pickupPickupLandmark.trim();
     return [q, l].filter(Boolean).join(" — ") || ramassageAddress || "—";
-  }, [pickupPickupQuartier, pickupPickupLandmark, ramassageAddress]);
+  }, [forExpedition, expeditionDepartureStreet, pickupPickupQuartier, pickupPickupLandmark, ramassageAddress]);
 
   const dropoffAddressV2 = useMemo(() => {
     const q = pickupDropoffQuartier.trim();
@@ -170,7 +182,11 @@ export default function ResumeProduitRamasseScreen() {
     () => (pickupDropoffQuartier.trim() || dropoffAddressV2.trim()),
     [pickupDropoffQuartier, dropoffAddressV2],
   );
-  const { estimate: deliveryFeeEstimate, loading: deliveryFeeLoading } = useDeliveryFeeEstimate(destinationQuartier, express);
+  // Pas de tarif auto sur une expédition : les frais (transport + main) sont saisis par l'agent.
+  const { estimate: deliveryFeeEstimate, loading: deliveryFeeLoading } = useDeliveryFeeEstimate(
+    forExpedition ? "" : destinationQuartier,
+    express,
+  );
 
   function goEdit(editSection: string) {
     router.push({
@@ -182,6 +198,8 @@ export default function ResumeProduitRamasseScreen() {
           ? {
               quartier: typeof params.quartier === "string" ? params.quartier : "",
               expeditionClient: typeof params.expeditionClient === "string" ? params.expeditionClient : "",
+              expAgence,
+              expPickupAddress,
               pickupPhone: phone,
               pickupExpress: express,
               pickupCollectCash: collectCash,
@@ -234,18 +252,15 @@ export default function ResumeProduitRamasseScreen() {
           description: descriptionToSend,
           phone: phone.trim(),
           receiverName: expeditionClient?.clientName,
-          express,
-          collectCash,
-          amount: forExpedition
-            ? collectCash === "yes"
-              ? Math.max(0, Math.round(amount))
-              : 0
-            : amountDueToSend,
+          express: forExpedition ? "no" : express,
+          collectCash: forExpedition ? "no" : collectCash,
+          amount: forExpedition ? 0 : amountDueToSend,
           quantity: qty > 0 ? qty : 1,
           pickupStreet: pickupStreet || "—",
-          pickupLandmark: pickupPickupLandmark.trim() || undefined,
+          pickupLandmark: forExpedition ? undefined : pickupPickupLandmark.trim() || undefined,
           dropoffStreet: dropoffStreet || "—",
-          dropoffLandmark: pickupDropoffLandmark.trim() || undefined,
+          dropoffLandmark: forExpedition ? undefined : pickupDropoffLandmark.trim() || undefined,
+          city: forExpedition ? quartierLivraison.trim() || undefined : undefined,
           scheduledDeliveryDate,
         }),
       );
@@ -346,44 +361,48 @@ export default function ResumeProduitRamasseScreen() {
           </Card>
         </View>
 
-        <View>
-          <SectionRow label="ADRESSE DE LIVRAISON" onEdit={() => goEdit("deliveryAddress")} />
-          <Card>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 16, alignItems: "center", justifyContent: "center" }}>
-                <SolarIcon name="solar:map-point-outline" size={24} color={colors.primary} />
+        {!forExpedition ? (
+          <View>
+            <SectionRow label="ADRESSE DE LIVRAISON" onEdit={() => goEdit("deliveryAddress")} />
+            <Card>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View style={{ width: 40, height: 40, borderRadius: 16, alignItems: "center", justifyContent: "center" }}>
+                  <SolarIcon name="solar:map-point-outline" size={24} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <AppText style={{ fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2} ellipsizeMode="tail">
+                    {dropoffAddressV2}
+                  </AppText>
+                </View>
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText style={{ fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2} ellipsizeMode="tail">
-                  {dropoffAddressV2}
-                </AppText>
-              </View>
-            </View>
-          </Card>
-        </View>
+            </Card>
+          </View>
+        ) : null}
 
-        <View>
-          <SectionRow label="TYPE DE LIVRAISON" onEdit={() => goEdit("deliveryType")} />
-          <Card>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 16, alignItems: "center", justifyContent: "center" }}>
-                {express === "yes" ? (
-                  <SolarIcon name="solar:lightning-bold-duotone" size={24} color={colors.primary} />
-                ) : (
-                  <SolarIcon name="solar:clock-circle-outline" size={24} color={colors.primary} />
-                )}
+        {!forExpedition ? (
+          <View>
+            <SectionRow label="TYPE DE LIVRAISON" onEdit={() => goEdit("deliveryType")} />
+            <Card>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View style={{ width: 40, height: 40, borderRadius: 16, alignItems: "center", justifyContent: "center" }}>
+                  {express === "yes" ? (
+                    <SolarIcon name="solar:lightning-bold-duotone" size={24} color={colors.primary} />
+                  ) : (
+                    <SolarIcon name="solar:clock-circle-outline" size={24} color={colors.primary} />
+                  )}
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <AppText style={{ fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2}>
+                    {express === "yes" ? "Express" : "Normal"}
+                  </AppText>
+                  <AppText variant="dense" style={{ marginTop: 4, fontSize: 12, lineHeight: 16, fontFamily: fonts.bodyRegular, color: "rgba(60,74,60,0.7)" }} numberOfLines={1}>
+                    {express === "yes" ? "Livraison estimée sous 45 min" : "Livraison estimée sous 2h"}
+                  </AppText>
+                </View>
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText style={{ fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2}>
-                  {express === "yes" ? "Express" : "Normal"}
-                </AppText>
-                <AppText variant="dense" style={{ marginTop: 4, fontSize: 12, lineHeight: 16, fontFamily: fonts.bodyRegular, color: "rgba(60,74,60,0.7)" }} numberOfLines={1}>
-                  {express === "yes" ? "Livraison estimée sous 45 min" : "Livraison estimée sous 2h"}
-                </AppText>
-              </View>
-            </View>
-          </Card>
-        </View>
+            </Card>
+          </View>
+        ) : null}
 
         <View>
           <SectionRow label="MODE DE RÉCUPÉRATION" onEdit={() => goEdit("mode")} />
@@ -413,9 +432,12 @@ export default function ResumeProduitRamasseScreen() {
         </View>
 
         <View>
-          <SectionRow label="ADRESSE DE RAMASSAGE" onEdit={() => goEdit("pickupAddress")} />
+          <SectionRow label={forExpedition ? "POINT DE DÉPART" : "ADRESSE DE RAMASSAGE"} onEdit={() => goEdit("pickupAddress")} />
           <Card>
-            <Line label="Adresse / quartier exact" value={pickupAddressV2} />
+            <Line label={forExpedition ? "Agence de voyage | adresse" : "Adresse / quartier exact"} value={pickupAddressV2} />
+            {forExpedition && quartierLivraison.trim().length ? (
+              <Line label="Ville" value={quartierLivraison.trim()} />
+            ) : null}
           </Card>
         </View>
 
@@ -438,26 +460,32 @@ export default function ResumeProduitRamasseScreen() {
           </Card>
         </View>
 
-        <View>
-          <SectionRow label="PAIEMENT" onEdit={() => goEdit("payment")} />
-          <Card>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 16, alignItems: "center", justifyContent: "center" }}>
-                <SolarIcon name="solar:wallet-outline" size={24} color={colors.primary} />
+        {!forExpedition ? (
+          <View>
+            <SectionRow label="PAIEMENT" onEdit={() => goEdit("payment")} />
+            <Card>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View style={{ width: 40, height: 40, borderRadius: 16, alignItems: "center", justifyContent: "center" }}>
+                  <SolarIcon name="solar:wallet-outline" size={24} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <AppText style={{ fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2}>
+                    {paymentLine}
+                  </AppText>
+                </View>
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText style={{ fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2}>
-                  {paymentLine}
-                </AppText>
-              </View>
-            </View>
-          </Card>
-        </View>
+            </Card>
+          </View>
+        ) : null}
 
         <View>
-          <SectionRow label="TOTAL" />
+          <SectionRow label={forExpedition ? "FRAIS D'EXPÉDITION" : "TOTAL"} />
           <Card>
-            <DeliveryFeeTotalCard estimate={deliveryFeeEstimate} loading={deliveryFeeLoading} />
+            {forExpedition ? (
+              <ExpeditionFeesPendingCard />
+            ) : (
+              <DeliveryFeeTotalCard estimate={deliveryFeeEstimate} loading={deliveryFeeLoading} />
+            )}
           </Card>
         </View>
       </View>

@@ -105,7 +105,6 @@ export default function AccueilScreen() {
       header={
         <View style={{ paddingBottom: 20 }}>
           <HomeTopBar
-            locationLabel="Yaoundé, Cameroun"
             onProfilePress={() => router.push("/profile")}
             initials={initials}
           />

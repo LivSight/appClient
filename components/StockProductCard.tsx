@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import AppText from "./AppText";
 import { card } from "../theme/styles";
-import { colors, fonts, radii } from "../theme/tokens";
+import { colors, fonts, radii, typography } from "../theme/tokens";
 
 export type StockProductCardItem = {
   id: string;
@@ -27,7 +27,7 @@ export default function StockProductCard({ item }: { item: StockProductCardItem 
       ]}
     >
       <AppText
-        style={{ flex: 1, fontSize: 16, lineHeight: 22, fontFamily: fonts.bodySemi, color: colors.text, paddingRight: 12 }}
+        style={{ ...typography.subtitle, flex: 1, fontFamily: fonts.bodySemi, color: colors.text, paddingRight: 12 }}
         numberOfLines={2}
         ellipsizeMode="tail"
       >
@@ -48,8 +48,7 @@ export default function StockProductCard({ item }: { item: StockProductCardItem 
         <AppText
           variant="dense"
           style={{
-            fontSize: 16,
-            lineHeight: 20,
+            ...typography.subtitle,
             fontFamily: fonts.bodyBold,
             color: low ? "#DC2626" : colors.primary,
           }}

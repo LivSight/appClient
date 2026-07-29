@@ -12,10 +12,16 @@ import CenteredScreenHeader from "./CenteredScreenHeader";
 import { card } from "../theme/styles";
 import { colors, fonts, radii, typography } from "../theme/tokens";
 import {
+  buildExpeditionDepartureStreet,
   parseExpeditionClient,
   SERVICE_EXPEDITION,
   stringifyExpeditionClient,
 } from "@/lib/expeditionClient";
+import {
+  getCompanySettings,
+  stockDepartureStreetFromCompanySettings,
+  STOCK_DEPARTURE_STREET,
+} from "@/lib/api/companySettings";
 import { hapticSuccess } from "@/lib/haptics";
 import { listPackages, makeClientId, type Package } from "@/lib/api/packages";
 import { formatSupplementFcfaLabel } from "@/lib/api/tariffUi";
@@ -356,6 +362,8 @@ export default function MaDemandeProduitsForm({ flow }: FormProps) {
     expeditionClient: expeditionClientRaw,
     editSection,
     phone: expPhoneParam,
+    expAgence: expAgenceParam,
+    expPickupAddress: expPickupAddressParam,
     selectedItems: selectedItemsParam,
     livSelectedItems: livSelectedItemsParam,
     livPhone: livPhoneParam,
@@ -385,6 +393,8 @@ export default function MaDemandeProduitsForm({ flow }: FormProps) {
     expeditionClient?: string;
     editSection?: string;
     phone?: string;
+    expAgence?: string;
+    expPickupAddress?: string;
     notes?: string;
     express?: "yes" | "no";
     collectCash?: "yes" | "no";
@@ -440,8 +450,25 @@ export default function MaDemandeProduitsForm({ flow }: FormProps) {
   const [pickupDropoffLandmark, setPickupDropoffLandmark] = useState(() => (typeof pickupDropoffLandmarkParam === "string" ? pickupDropoffLandmarkParam : ""));
 
   const [expVille, setExpVille] = useState(() => (typeof quartierParam === "string" ? quartierParam.trim() : ""));
-  const [expAgence, setExpAgence] = useState("");
-  const [expPickupAddress, setExpPickupAddress] = useState("");
+  const [expAgence, setExpAgence] = useState(() => (typeof expAgenceParam === "string" ? expAgenceParam : ""));
+  const [expPickupAddress, setExpPickupAddress] = useState(() =>
+    typeof expPickupAddressParam === "string" ? expPickupAddressParam : ""
+  );
+  // Point de départ colis en stock : adresse agence (Paramètres), en lecture seule.
+  const [agencyDepartureStreet, setAgencyDepartureStreet] = useState(STOCK_DEPARTURE_STREET);
+
+  useEffect(() => {
+    if (!isExpedition) return;
+    let mounted = true;
+    (async () => {
+      const settings = await getCompanySettings();
+      if (!mounted) return;
+      setAgencyDepartureStreet(stockDepartureStreetFromCompanySettings(settings));
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [isExpedition]);
   const [expNomDestinataire, setExpNomDestinataire] = useState(() =>
     parseExpeditionClient(typeof expeditionClientRaw === "string" ? expeditionClientRaw : undefined)?.clientName ?? ""
   );
@@ -627,10 +654,11 @@ export default function MaDemandeProduitsForm({ flow }: FormProps) {
   const handleContinue = useCallback(async () => {
     await hapticSuccess();
     if (mode === "stock" && isExpedition) {
+      const departureStreet = buildExpeditionDepartureStreet(expAgence, agencyDepartureStreet);
       const expeditionClient = stringifyExpeditionClient({
         clientName: expNomDestinataire.trim(),
         phone: expTelephoneDestinataire.trim(),
-        address: [expVille.trim(), expAgence.trim()].filter(Boolean).join(" — ") || quartier.trim(),
+        address: [expVille.trim(), departureStreet].filter(Boolean).join(" — ") || quartier.trim(),
         notes: "",
       });
       router.push({
@@ -638,7 +666,7 @@ export default function MaDemandeProduitsForm({ flow }: FormProps) {
         params: {
           quartier: expVille.trim(),
           expAgence: expAgence.trim(),
-          expPickupAddress: expPickupAddress.trim(),
+          expPickupAddress: agencyDepartureStreet.trim(),
           selectedItems: stringifyStockCartItems(expCart),
           phone: expTelephoneDestinataire.trim(),
           notes: "",
@@ -654,13 +682,13 @@ export default function MaDemandeProduitsForm({ flow }: FormProps) {
     }
 
     if (mode === "pickup" && isExpedition) {
-      const pickupAddressCombined = [expAgence.trim(), expPickupAddress.trim()].filter(Boolean).join(" — ");
+      const departureStreet = buildExpeditionDepartureStreet(expAgence, expPickupAddress);
       const expeditionPickupParams = {
         service: SERVICE_EXPEDITION,
         expeditionClient: stringifyExpeditionClient({
           clientName: expNomDestinataire.trim(),
           phone: expTelephoneDestinataire.trim(),
-          address: [expVille.trim(), pickupAddressCombined].filter(Boolean).join(" — "),
+          address: [expVille.trim(), departureStreet].filter(Boolean).join(" — "),
           notes: "",
         }),
       };
@@ -668,8 +696,10 @@ export default function MaDemandeProduitsForm({ flow }: FormProps) {
         pathname: "/resume-produit-ramasse",
         params: {
           quartier: expVille.trim(),
+          expAgence: expAgence.trim(),
+          expPickupAddress: expPickupAddress.trim(),
           pickupName: expNomDestinataire.trim(),
-          pickupAddress: pickupAddressCombined,
+          pickupAddress: departureStreet,
           pickupQty: "1",
           pickupExpress: "no",
           pickupCollectCash: "no",
@@ -742,6 +772,7 @@ export default function MaDemandeProduitsForm({ flow }: FormProps) {
     expVille,
     expAgence,
     expPickupAddress,
+    agencyDepartureStreet,
     quartier,
     expCart,
     livQuartierQuery,
@@ -891,8 +922,17 @@ export default function MaDemandeProduitsForm({ flow }: FormProps) {
 
             <View onLayout={(e) => recordSectionLayout("pickupAddress", e)} />
             <FormInput label="Ville de l'expédition" value={expVille} onChangeText={setExpVille} placeholder="Ex. Douala" />
-            <FormInput label="Agence de l'expédition" value={expAgence} onChangeText={setExpAgence} placeholder="Ex. Agence Liv Sight" />
-            <FormInput label="Adresse de ramassage" value={expPickupAddress} onChangeText={setExpPickupAddress} placeholder="Ex. Rue, repère, quartier…" />
+            <FormInput label="Agence de voyage" value={expAgence} onChangeText={setExpAgence} placeholder="Ex. Général Express" />
+            <View>
+              <FormInput label="Point de départ (adresse agence)" value={agencyDepartureStreet} editable={false} />
+              <AppText
+                variant="dense"
+                style={{ marginTop: 6, fontSize: 11, lineHeight: 15, fontFamily: fonts.bodyRegular, color: "rgba(60,74,60,0.6)" }}
+                numberOfLines={2}
+              >
+                Colis en stock : le départ se fait depuis l&apos;agence.
+              </AppText>
+            </View>
             <View onLayout={(e) => recordSectionLayout("recipient", e)} />
             <FormInput label="Nom du destinataire" value={expNomDestinataire} onChangeText={setExpNomDestinataire} placeholder="Nom complet" autoCapitalize="words" />
             <FormInput label="Numéro de téléphone du destinataire" keyboardType="phone-pad" value={expTelephoneDestinataire} onChangeText={setExpTelephoneDestinataire} placeholder="6XXXXXX" />
@@ -1101,8 +1141,8 @@ export default function MaDemandeProduitsForm({ flow }: FormProps) {
             <View style={{ gap: 20 }}>
           <View onLayout={(e) => recordSectionLayout("pickupAddress", e)} />
           <FormInput label="Ville de l'expédition" value={expVille} onChangeText={setExpVille} placeholder="Ex. Douala" />
-          <FormInput label="Agence de l'expédition" value={expAgence} onChangeText={setExpAgence} placeholder="Ex. Agence Liv Sight" />
-          <FormInput label="Adresse de ramassage" value={expPickupAddress} onChangeText={setExpPickupAddress} placeholder="Ex. Rue, repère, quartier…" />
+          <FormInput label="Agence de voyage" value={expAgence} onChangeText={setExpAgence} placeholder="Ex. Général Express" />
+          <FormInput label="Point de départ (adresse du client)" value={expPickupAddress} onChangeText={setExpPickupAddress} placeholder="Ex. Rue, repère, quartier…" />
           <View onLayout={(e) => recordSectionLayout("recipient", e)} />
           <FormInput label="Nom du destinataire" value={expNomDestinataire} onChangeText={setExpNomDestinataire} placeholder="Nom complet" autoCapitalize="words" />
           <FormInput label="Numéro de téléphone du destinataire" keyboardType="phone-pad" value={expTelephoneDestinataire} onChangeText={setExpTelephoneDestinataire} placeholder="6XXXXXX" />

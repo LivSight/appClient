@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
@@ -10,7 +10,6 @@ import SolarIcon from "@/components/SolarIcon";
 import { getCurrentUserId } from "@/lib/auth/currentUser";
 import { getTransactionById, type Transaction } from "@/lib/api/transactions";
 import { setLocalReadAt } from "@/lib/api/localReadStore";
-import { featureFlags } from "@/lib/featureFlags";
 import {
   formatMessageMeta,
   formatMessageTime,
@@ -324,11 +323,6 @@ export default function InboxChatScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [transactionNumericId, setTransactionNumericId] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (featureFlags.messagingEnabled) return;
-    router.replace("/(tabs)");
-  }, []);
 
   const topPadding = Math.max(spacing.screenPaddingX, insets.top + spacing.screenPaddingX);
   const bottomPadding = Math.max(24, insets.bottom + 8);

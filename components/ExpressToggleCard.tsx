@@ -1,7 +1,7 @@
 import { View, Switch } from "react-native";
 import AppText from "./AppText";
 import SolarIcon from "./SolarIcon";
-import { colors, fonts, radii } from "../theme/tokens";
+import { colors, fonts, radii, shadows } from "../theme/tokens";
 
 type Props = {
   value: boolean;
@@ -25,11 +25,7 @@ export default function ExpressToggleCard({ value, onChange, supplementXaf }: Pr
         backgroundColor: colors.white,
         borderRadius: 24,
         padding: 18,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
+        ...shadows.card,
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center" }}>

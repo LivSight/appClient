@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Alert, View, Pressable, RefreshControl, ActivityIndicator, useWindowDimensions } from "react-native";
+import { router } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import ScreenLayout from "../../components/ScreenLayout";
 import MetricCard from "../../components/MetricCard";
@@ -9,14 +10,19 @@ import AppText from "../../components/AppText";
 import ReportCustomDateRange from "@/components/ReportCustomDateRange";
 import {
   fetchDeliveryReport,
+  fetchExpeditionReport,
+  fetchSettlementReport,
   fetchStockReport,
   sourceCountsFromDeliveries,
   statusBucketsFromSummary,
   toReportDateParam,
   type DeliveryReport,
+  type ExpeditionReport,
+  type ReportKind,
+  type SettlementReport,
   type StockReport,
 } from "@/lib/api/reports";
-import { downloadAndShareReportPdf, PDF_MODULES_UNAVAILABLE_MESSAGE } from "@/lib/reports/reportPdf";
+import { downloadAndShareReportPdf, isPdfPreviewAvailable, PDF_MODULES_UNAVAILABLE_MESSAGE } from "@/lib/reports/reportPdf";
 import {
   formatDeltaPct,
   formatPeriodLabel,
@@ -33,6 +39,16 @@ function startOfMonth(d: Date): Date {
 function safeCount(n: unknown): number {
   const v = Number(n);
   return Number.isFinite(v) ? Math.max(0, Math.round(v)) : 0;
+}
+
+/** Montant signé : net_a_reverser peut être négatif (frais expédition > solde livraisons). */
+function safeAmount(n: unknown): number {
+  const v = Number(n);
+  return Number.isFinite(v) ? Math.round(v) : 0;
+}
+
+function formatXafSigned(n: number): string {
+  return n < 0 ? `-${formatXaf(-n)}` : formatXaf(n);
 }
 
 type StatusChip = {
@@ -153,7 +169,8 @@ function PdfButton({
     <Pressable
       onPress={busy ? undefined : onPress}
       style={{
-        flex: 1,
+        flexGrow: 1,
+        flexBasis: "45%",
         minHeight: 52,
         borderRadius: radii.pill,
         backgroundColor: colors.white,
@@ -191,10 +208,14 @@ export default function RapportsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [settlement, setSettlement] = useState<SettlementReport | null>(null);
+  const [previousSettlement, setPreviousSettlement] = useState<SettlementReport | null>(null);
   const [report, setReport] = useState<DeliveryReport | null>(null);
   const [previousReport, setPreviousReport] = useState<DeliveryReport | null>(null);
+  const [expeditionReport, setExpeditionReport] = useState<ExpeditionReport | null>(null);
+  const [previousExpeditionReport, setPreviousExpeditionReport] = useState<ExpeditionReport | null>(null);
   const [stockReport, setStockReport] = useState<StockReport | null>(null);
-  const [downloadingPdf, setDownloadingPdf] = useState<"deliveries" | "stock" | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState<ReportKind | null>(null);
 
   const period = useMemo(() => {
     const bounds = resolveReportPeriodBounds({ range, now: new Date(), customStart, customEnd });
@@ -213,13 +234,48 @@ export default function RapportsScreen() {
         if (mode === "refresh") setRefreshing(true);
         setError(null);
 
-        const [current, previous, stock] = await Promise.all([
-          fetchDeliveryReport(period.start, period.end),
-          fetchDeliveryReport(period.prevStart, period.prevEnd),
+        // Relevé de solde : un seul appel porte livraisons + expéditions + net à reverser.
+        // Best-effort : un backend sans /api/reports/settlement ne doit pas casser la page.
+        const fetchSettlementSafe = (start: string, end: string) =>
+          fetchSettlementReport(start, end).catch((e: unknown) => {
+            logger.warn("rapports", "settlement report unavailable", e);
+            return null;
+          });
+
+        const [settlementCurrent, settlementPrevious, stock] = await Promise.all([
+          fetchSettlementSafe(period.start, period.end),
+          fetchSettlementSafe(period.prevStart, period.prevEnd),
           fetchStockReport(period.start, period.end),
         ]);
-        setReport(current);
-        setPreviousReport(previous);
+
+        if (settlementCurrent) {
+          setSettlement(settlementCurrent);
+          setPreviousSettlement(settlementPrevious);
+          setReport(settlementCurrent.deliveries ?? null);
+          setPreviousReport(settlementPrevious?.deliveries ?? null);
+          setExpeditionReport(settlementCurrent.expeditions ?? null);
+          setPreviousExpeditionReport(settlementPrevious?.expeditions ?? null);
+        } else {
+          // Fallback pré-settlement : rapports séparés (expéditions best-effort).
+          const fetchExpeditionsSafe = (start: string, end: string) =>
+            fetchExpeditionReport(start, end).catch((e: unknown) => {
+              logger.warn("rapports", "expedition report unavailable", e);
+              return null;
+            });
+
+          const [current, previous, expeditions, previousExpeditions] = await Promise.all([
+            fetchDeliveryReport(period.start, period.end),
+            fetchDeliveryReport(period.prevStart, period.prevEnd),
+            fetchExpeditionsSafe(period.start, period.end),
+            fetchExpeditionsSafe(period.prevStart, period.prevEnd),
+          ]);
+          setSettlement(null);
+          setPreviousSettlement(null);
+          setReport(current);
+          setPreviousReport(previous);
+          setExpeditionReport(expeditions);
+          setPreviousExpeditionReport(previousExpeditions);
+        }
         setStockReport(stock);
       } catch (e: unknown) {
         logger.warn("rapports", "load failed", e);
@@ -246,7 +302,20 @@ export default function RapportsScreen() {
   const buckets = useMemo(() => statusBucketsFromSummary(report?.status_summary), [report?.status_summary]);
   const sources = useMemo(() => sourceCountsFromDeliveries(report?.deliveries), [report?.deliveries]);
 
-  async function onDownloadPdf(kind: "deliveries" | "stock") {
+  // Sections conditionnées aux données (comme le PDF) : livraisons et expéditions
+  // ne s'affichent que si la période en contient ; sinon état vide.
+  const hasDeliveries = safeCount(report?.delivery_count) > 0;
+  const hasExpeditions = safeCount(expeditionReport?.expedition_count) > 0;
+  const hasActivity = hasDeliveries || hasExpeditions;
+
+  const pdfPreviewAvailable = useMemo(() => isPdfPreviewAvailable(), []);
+
+  async function onDownloadPdf(kind: ReportKind) {
+    // Prévisualisation in-app quand le build le permet ; sinon partage direct (ancien flux).
+    if (pdfPreviewAvailable) {
+      router.push({ pathname: "/rapport-pdf-preview", params: { kind, start: period.start, end: period.end } });
+      return;
+    }
     if (downloadingPdf) return;
     setDownloadingPdf(kind);
     try {
@@ -286,38 +355,85 @@ export default function RapportsScreen() {
     </View>
   ) : (
     <>
-      <View style={{ marginTop: 18 }}>
-        <AppText style={{ ...typography.sectionTitle, fontSize: 14, lineHeight: 20, marginBottom: 12 }} numberOfLines={1}>
-          Livraisons enregistrées
-        </AppText>
-        <StatusChipRow
-          chips={[
-            { label: "Total", count: safeCount(report?.delivery_count), iconName: "solar:delivery-bold-duotone", color: colors.primary },
-            { label: "En stock", count: sources.stock, iconName: "solar:box-bold-duotone", color: colors.primary },
-            { label: "Ramassage", count: sources.pickup, iconName: "solar:hand-shake-bold", color: colors.primary },
-          ]}
-        />
-      </View>
+      {!hasActivity ? (
+        <View
+          style={{
+            marginTop: 18,
+            paddingVertical: 32,
+            paddingHorizontal: 24,
+            backgroundColor: colors.cardBg,
+            borderRadius: radii.card,
+            alignItems: "center",
+            ...shadows.card,
+          }}
+        >
+          <SolarIcon name="solar:delivery-bold-duotone" size={40} color={"rgba(60,74,60,0.35)"} />
+          <AppText
+            style={{ marginTop: 12, fontSize: 15, lineHeight: 21, fontFamily: fonts.bodyBold, color: colors.text, textAlign: "center" }}
+            numberOfLines={2}
+          >
+            Aucune activité sur cette période
+          </AppText>
+          <AppText
+            variant="dense"
+            style={{ marginTop: 6, fontSize: 12, lineHeight: 17, fontFamily: fonts.bodyRegular, color: "rgba(60,74,60,0.65)", textAlign: "center" }}
+            numberOfLines={3}
+          >
+            Aucune livraison ni expédition entre ces dates. Modifiez la période pour voir vos rapports.
+          </AppText>
+        </View>
+      ) : null}
 
-      <View style={{ marginTop: 18 }}>
-        <AppText style={{ ...typography.sectionTitle, fontSize: 14, lineHeight: 20, marginBottom: 12 }} numberOfLines={1}>
-          Statuts
-        </AppText>
-        <StatusChipRow
-          chips={[
-            { label: "En cours", count: buckets.enCours, iconName: "solar:clock-circle-outline", color: colors.primary },
-            { label: "Livré", count: buckets.delivered, iconName: "solar:check-circle-bold", color: "#16A34A" },
-            { label: "Injoignable", count: buckets.injoignable, iconName: "solar:phone-outline", color: "#B45309" },
-            { label: "Annulé", count: buckets.annule, iconName: "solar:close-circle-bold", color: "#DC2626" },
-          ]}
-        />
-      </View>
+      {hasDeliveries ? (
+        <>
+          <View style={{ marginTop: 18 }}>
+            <AppText style={{ ...typography.sectionTitle, fontSize: 14, lineHeight: 20, marginBottom: 12 }} numberOfLines={1}>
+              Livraisons enregistrées
+            </AppText>
+            <StatusChipRow
+              chips={[
+                { label: "Total", count: safeCount(report?.delivery_count), iconName: "solar:delivery-bold-duotone", color: colors.primary },
+                { label: "En stock", count: sources.stock, iconName: "solar:box-bold-duotone", color: colors.primary },
+                { label: "Ramassage", count: sources.pickup, iconName: "solar:hand-shake-bold", color: colors.primary },
+              ]}
+            />
+          </View>
 
-      <View style={{ marginTop: 18 }}>
-        <AppText style={{ ...typography.sectionTitle, fontSize: 14, lineHeight: 20, marginBottom: 12 }} numberOfLines={1}>
-          Comptabilité
-        </AppText>
-      </View>
+          <View style={{ marginTop: 18 }}>
+            <AppText style={{ ...typography.sectionTitle, fontSize: 14, lineHeight: 20, marginBottom: 12 }} numberOfLines={1}>
+              Statuts
+            </AppText>
+            <StatusChipRow
+              chips={[
+                { label: "En cours", count: buckets.enCours, iconName: "solar:clock-circle-outline", color: colors.primary },
+                { label: "Livré", count: buckets.delivered, iconName: "solar:check-circle-bold", color: "#16A34A" },
+                { label: "Injoignable", count: buckets.injoignable, iconName: "solar:phone-outline", color: "#B45309" },
+                { label: "Annulé", count: buckets.annule, iconName: "solar:close-circle-bold", color: "#DC2626" },
+              ]}
+            />
+          </View>
+        </>
+      ) : null}
+
+      {hasDeliveries || (settlement && hasActivity) ? (
+        <View style={{ marginTop: 18 }}>
+          <AppText style={{ ...typography.sectionTitle, fontSize: 14, lineHeight: 20, marginBottom: 12 }} numberOfLines={1}>
+            Comptabilité
+          </AppText>
+        </View>
+      ) : null}
+      {settlement && hasActivity ? (
+        <View style={{ marginBottom: 16 }}>
+          <MetricCard
+            title="Montant à vous reverser"
+            value={formatXafSigned(safeAmount(settlement.net_a_reverser))}
+            suffix="FCFA"
+            delta={formatDeltaPct(safeAmount(settlement.net_a_reverser), safeAmount(previousSettlement?.net_a_reverser))}
+            iconName="solar:banknote-outline"
+          />
+        </View>
+      ) : null}
+      {hasDeliveries ? (
       <View style={{ gap: 16 }}>
         <View style={{ flexDirection: "row", gap: 16 }}>
           <View style={{ flex: 1 }}>
@@ -364,6 +480,55 @@ export default function RapportsScreen() {
           </View>
         </View>
       </View>
+      ) : null}
+
+      {expeditionReport && hasExpeditions ? (
+        <>
+          <View style={{ marginTop: 18 }}>
+            <AppText style={{ ...typography.sectionTitle, fontSize: 14, lineHeight: 20, marginBottom: 12 }} numberOfLines={1}>
+              Expéditions
+            </AppText>
+            <StatusChipRow
+              chips={[
+                { label: "Total", count: safeCount(expeditionReport.expedition_count), iconName: "solar:box-bold-duotone", color: colors.primary },
+                { label: "Frais à confirmer", count: safeCount(expeditionReport.fees_pending_count), iconName: "solar:danger-circle-bold", color: "#B45309" },
+              ]}
+            />
+          </View>
+          {/* Dette client envers l'agence (transport + main) — à ne pas combiner avec le solde livraisons. */}
+          <View style={{ marginTop: 16, gap: 16 }}>
+            <MetricCard
+              title="Total à facturer (expéditions)"
+              value={formatXaf(safeCount(expeditionReport.total_a_facturer))}
+              suffix="FCFA"
+              delta={formatDeltaPct(safeCount(expeditionReport.total_a_facturer), safeCount(previousExpeditionReport?.total_a_facturer))}
+              iconName="solar:banknote-outline"
+            />
+            <View style={{ flexDirection: "row", gap: 16 }}>
+              <View style={{ flex: 1 }}>
+                <MetricCard
+                  title="Frais transport"
+                  value={formatXaf(safeCount(expeditionReport.total_transport))}
+                  suffix="FCFA"
+                  delta={formatDeltaPct(safeCount(expeditionReport.total_transport), safeCount(previousExpeditionReport?.total_transport))}
+                  iconName="solar:delivery-bold-duotone"
+                  compact
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <MetricCard
+                  title="Main agence"
+                  value={formatXaf(safeCount(expeditionReport.total_main_agence))}
+                  suffix="FCFA"
+                  delta={formatDeltaPct(safeCount(expeditionReport.total_main_agence), safeCount(previousExpeditionReport?.total_main_agence))}
+                  iconName="solar:wallet-bold-duotone"
+                  compact
+                />
+              </View>
+            </View>
+          </View>
+        </>
+      ) : null}
 
       <View style={{ marginTop: 18 }}>
         <AppText style={{ ...typography.sectionTitle, fontSize: 14, lineHeight: 20, marginBottom: 12 }} numberOfLines={1}>
@@ -378,12 +543,28 @@ export default function RapportsScreen() {
         />
       </View>
 
-      <View style={{ marginTop: 22, flexDirection: "row", gap: 12 }}>
-        <PdfButton
-          label="PDF Livraisons"
-          busy={downloadingPdf === "deliveries"}
-          onPress={() => void onDownloadPdf("deliveries")}
-        />
+      <View style={{ marginTop: 22, flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+        {settlement && hasActivity ? (
+          <PdfButton
+            label="PDF Relevé de solde"
+            busy={downloadingPdf === "settlement"}
+            onPress={() => void onDownloadPdf("settlement")}
+          />
+        ) : null}
+        {hasDeliveries ? (
+          <PdfButton
+            label="PDF Livraisons"
+            busy={downloadingPdf === "deliveries"}
+            onPress={() => void onDownloadPdf("deliveries")}
+          />
+        ) : null}
+        {hasExpeditions ? (
+          <PdfButton
+            label="PDF Expéditions"
+            busy={downloadingPdf === "expeditions"}
+            onPress={() => void onDownloadPdf("expeditions")}
+          />
+        ) : null}
         <PdfButton
           label="PDF Stock"
           busy={downloadingPdf === "stock"}

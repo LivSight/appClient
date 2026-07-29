@@ -9,9 +9,11 @@ import CenteredScreenHeader from "../components/CenteredScreenHeader";
 import { card } from "../theme/styles";
 import { colors, fonts, radii, typography } from "../theme/tokens";
 import { hapticSuccess } from "@/lib/haptics";
-import { isExpeditionService, parseExpeditionClient } from "@/lib/expeditionClient";
+import { buildExpeditionDepartureStreet, isExpeditionService, parseExpeditionClient } from "@/lib/expeditionClient";
 import { createTransaction, buildPayloadFromStockResume, type TransactionLineItem } from "@/lib/api/transactions";
+import { STOCK_DEPARTURE_STREET } from "@/lib/api/companySettings";
 import DeliveryFeeTotalCard from "../components/DeliveryFeeTotalCard";
+import ExpeditionFeesPendingCard from "../components/ExpeditionFeesPendingCard";
 import { useDeliveryFeeEstimate } from "@/lib/hooks/useDeliveryFeeEstimate";
 import {
   formatScheduledDeliveryDisplayLabel,
@@ -158,7 +160,19 @@ export default function ResumeProduitEnStockScreen() {
     () => (deliveryQuartier || deliveryAddress || quartier || "").trim(),
     [deliveryQuartier, deliveryAddress, quartier],
   );
-  const { estimate: deliveryFeeEstimate, loading: deliveryFeeLoading } = useDeliveryFeeEstimate(destinationQuartier, express);
+  // Pas de tarif auto sur une expédition : les frais (transport + main) sont saisis par l'agent.
+  const { estimate: deliveryFeeEstimate, loading: deliveryFeeLoading } = useDeliveryFeeEstimate(
+    forExpedition ? "" : destinationQuartier,
+    express,
+  );
+
+  const expeditionDepartureStreet = useMemo(
+    () =>
+      buildExpeditionDepartureStreet(expAgence, expPickupAddress) ||
+      expeditionClient?.address?.trim() ||
+      STOCK_DEPARTURE_STREET,
+    [expAgence, expPickupAddress, expeditionClient],
+  );
 
   function goEdit(editSection: string) {
     router.push({
@@ -170,6 +184,8 @@ export default function ResumeProduitEnStockScreen() {
           ? {
               quartier: typeof params.quartier === "string" ? params.quartier : "",
               expeditionClient: typeof params.expeditionClient === "string" ? params.expeditionClient : "",
+              expAgence,
+              expPickupAddress,
               phone,
               express,
               collectCash,
@@ -214,9 +230,7 @@ export default function ResumeProduitEnStockScreen() {
         : 0;
     const amountDueToSend = amountDueNumber > 0 ? amountDueNumber : amountDueFallback;
     const descriptionToSend = notes.trim().length ? notes.trim() : "Aucune description donnée";
-    const departureStreet = forExpedition
-      ? [expAgence.trim(), expPickupAddress.trim()].filter(Boolean).join(" — ") || expeditionClient?.address?.trim() || "—"
-      : "Agence | Ongola Express";
+    const departureStreet = forExpedition ? expeditionDepartureStreet : STOCK_DEPARTURE_STREET;
     const city = forExpedition ? quartier.trim() || "Yaoundé" : "Yaoundé";
 
     try {
@@ -331,28 +345,30 @@ export default function ResumeProduitEnStockScreen() {
           </Card>
         </View>
 
-        <View>
-          <SectionRow label="TYPE DE LIVRAISON" onEdit={() => goEdit("deliveryType")} />
-          <Card>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 16, alignItems: "center", justifyContent: "center" }}>
-                {express === "yes" ? (
-                  <SolarIcon name="solar:lightning-bold-duotone" size={24} color={colors.primary} />
-                ) : (
-                  <SolarIcon name="solar:clock-circle-outline" size={24} color={colors.primary} />
-                )}
+        {!forExpedition ? (
+          <View>
+            <SectionRow label="TYPE DE LIVRAISON" onEdit={() => goEdit("deliveryType")} />
+            <Card>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View style={{ width: 40, height: 40, borderRadius: 16, alignItems: "center", justifyContent: "center" }}>
+                  {express === "yes" ? (
+                    <SolarIcon name="solar:lightning-bold-duotone" size={24} color={colors.primary} />
+                  ) : (
+                    <SolarIcon name="solar:clock-circle-outline" size={24} color={colors.primary} />
+                  )}
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <AppText style={{ fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2}>
+                    {express === "yes" ? "Express" : "Normal"}
+                  </AppText>
+                  <AppText variant="dense" style={{ marginTop: 4, fontSize: 12, lineHeight: 16, fontFamily: fonts.bodyRegular, color: "rgba(60,74,60,0.7)" }} numberOfLines={1}>
+                    {express === "yes" ? "Livraison estimée sous 45 min" : "Livraison estimée sous 2h"}
+                  </AppText>
+                </View>
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText style={{ fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2}>
-                  {express === "yes" ? "Express" : "Normal"}
-                </AppText>
-                <AppText variant="dense" style={{ marginTop: 4, fontSize: 12, lineHeight: 16, fontFamily: fonts.bodyRegular, color: "rgba(60,74,60,0.7)" }} numberOfLines={1}>
-                  {express === "yes" ? "Livraison estimée sous 45 min" : "Livraison estimée sous 2h"}
-                </AppText>
-              </View>
-            </View>
-          </Card>
-        </View>
+            </Card>
+          </View>
+        ) : null}
 
         <View>
           <SectionRow label="MODE DE RÉCUPÉRATION" onEdit={() => goEdit("mode")} />
@@ -417,7 +433,7 @@ export default function ResumeProduitEnStockScreen() {
         </View>
 
         <View>
-          <SectionRow label="ADRESSE DE LIVRAISON" onEdit={() => goEdit("address")} />
+          <SectionRow label={forExpedition ? "POINT DE DÉPART" : "ADRESSE DE LIVRAISON"} onEdit={() => goEdit(forExpedition ? "pickupAddress" : "address")} />
           <Card>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
               <View style={{ width: 40, height: 40, borderRadius: 16, alignItems: "center", justifyContent: "center" }}>
@@ -425,9 +441,14 @@ export default function ResumeProduitEnStockScreen() {
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <AppText style={{ fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2} ellipsizeMode="tail">
-                  {deliveryQuartier || deliveryAddress || quartier || "—"}
+                  {forExpedition ? expeditionDepartureStreet : deliveryQuartier || deliveryAddress || quartier || "—"}
                 </AppText>
-                {deliveryLandmark.trim().length ? (
+                {forExpedition && quartier.trim().length ? (
+                  <AppText variant="dense" style={{ marginTop: 4, fontSize: 12, lineHeight: 16, fontFamily: fonts.bodyRegular, color: "rgba(60,74,60,0.7)" }} numberOfLines={1} ellipsizeMode="tail">
+                    {`Ville : ${quartier.trim()}`}
+                  </AppText>
+                ) : null}
+                {!forExpedition && deliveryLandmark.trim().length ? (
                   <AppText variant="dense" style={{ marginTop: 4, fontSize: 12, lineHeight: 16, fontFamily: fonts.bodyRegular, color: "rgba(60,74,60,0.7)" }} numberOfLines={2} ellipsizeMode="tail">
                     {deliveryLandmark}
                   </AppText>
@@ -448,30 +469,36 @@ export default function ResumeProduitEnStockScreen() {
           </View>
         ) : null}
 
-        <View>
-          <SectionRow label="PAIEMENT" onEdit={() => goEdit("payment")} />
-          <Card>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 16, alignItems: "center", justifyContent: "center" }}>
-                <SolarIcon name="solar:wallet-outline" size={24} color={colors.primary} />
+        {!forExpedition ? (
+          <View>
+            <SectionRow label="PAIEMENT" onEdit={() => goEdit("payment")} />
+            <Card>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View style={{ width: 40, height: 40, borderRadius: 16, alignItems: "center", justifyContent: "center" }}>
+                  <SolarIcon name="solar:wallet-outline" size={24} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <AppText style={{ fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2}>
+                    {collectCash === "no"
+                      ? "Pas d'argent à récupérer"
+                      : Number.isFinite(amountDue) && amountDue > 0
+                        ? `${Math.round(amountDue).toLocaleString("fr-FR").replace(/\\s/g, " ")} FCFA à récupérer`
+                        : "Montant à récupérer"}
+                  </AppText>
+                </View>
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText style={{ fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2}>
-                  {collectCash === "no"
-                    ? "Pas d'argent à récupérer"
-                    : Number.isFinite(amountDue) && amountDue > 0
-                      ? `${Math.round(amountDue).toLocaleString("fr-FR").replace(/\\s/g, " ")} FCFA à récupérer`
-                      : "Montant à récupérer"}
-                </AppText>
-              </View>
-            </View>
-          </Card>
-        </View>
+            </Card>
+          </View>
+        ) : null}
 
         <View>
-          <SectionRow label="TOTAL" />
+          <SectionRow label={forExpedition ? "FRAIS D'EXPÉDITION" : "TOTAL"} />
           <Card>
-            <DeliveryFeeTotalCard estimate={deliveryFeeEstimate} loading={deliveryFeeLoading} />
+            {forExpedition ? (
+              <ExpeditionFeesPendingCard />
+            ) : (
+              <DeliveryFeeTotalCard estimate={deliveryFeeEstimate} loading={deliveryFeeLoading} />
+            )}
           </Card>
         </View>
       </View>
