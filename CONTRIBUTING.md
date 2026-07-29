@@ -56,26 +56,52 @@ feature/*   ← développement courant
 
 1. Créer `feature/<nom-court>` depuis `staging`.
 2. Développer, pusher, ouvrir une PR vers `staging`.
-3. Après validation : merger dans `staging` → build preview automatique (CI).
-4. Release : merger `staging` → `main` → build production automatique (CI).
+3. Après validation : merger dans `staging`.
+4. Release : merger `staging` → `main`, puis build EAS **manuel** si besoin (`npm run eas:build:production`).
 
-Détails du pipeline CI/CD : [`docs/BUILD_CI.md`](docs/BUILD_CI.md).
+Détails CI et builds : [`docs/BUILD_CI.md`](docs/BUILD_CI.md).
 
 ---
 
 ## Convention de commits
 
-Format libre mais concis. Exemples :
+Nous suivons **[Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)** (détails : `.cursor/rules/conventional-commits.mdc`).
+
+**Langue :** anglais. **Style :** impératif, ~72 caractères max.
 
 ```
-Add stock product sentence-case normalization
-Fix 401 retry loop when refresh token is expired
-Update CLAUDE.md with test framework info
+<type>[optional scope]: <description>
+
+[optional body]
 ```
 
-- Commencer par un verbe à l'impératif (Add, Fix, Update, Remove, Refactor).
-- Une ligne de titre, max ~72 caractères.
-- Corps optionnel séparé par une ligne vide pour le contexte.
+### Types courants
+
+| Type | Usage |
+|------|--------|
+| `feat` | Nouvelle fonctionnalité |
+| `fix` | Correction de bug |
+| `docs` | Documentation |
+| `test` | Tests |
+| `refactor` | Refactor sans changement de comportement |
+| `ci` | GitHub Actions |
+| `build` | Dépendances, EAS |
+| `chore` | Maintenance |
+
+### Exemples
+
+```
+feat(stock): normalize product names to sentence case
+fix(auth): retry once after silent refresh on 401
+ci: replace EAS build job with lint and test only
+docs: add CONTRIBUTING and docs index
+```
+
+**Breaking change :** `feat(api)!: remove legacy endpoint` ou footer `BREAKING CHANGE: …`
+
+- Un commit = un changement logique.
+- Ne pas commiter `.env`, secrets, `google-services.json`.
+- Squash PR : le message final doit aussi respecter ce format.
 
 ---
 
@@ -99,6 +125,7 @@ Les conventions détaillées sont dans `.cursor/rules/` (chargées automatiqueme
 
 | Fichier | Résumé |
 |---------|--------|
+| `conventional-commits.mdc` | Format des messages de commit (Conventional Commits) |
 | `tdd-mandatory.mdc` | TDD obligatoire, structure des tests, commandes |
 | `livsight-styling-and-logging.mdc` | Fonts (Montserrat/Palanquin), tokens centralisés, logger |
 | `hig-permissions-performance.mdc` | Apple HIG, Dynamic Type, permissions, performance |
