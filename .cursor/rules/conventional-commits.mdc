@@ -1,0 +1,76 @@
+---
+description: Conventional Commits 1.0.0 — format des messages de commit
+alwaysApply: true
+---
+
+# Conventional Commits (obligatoire)
+
+Spécification : [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)
+
+**Langue des commits :** anglais (titres courts, impératif).
+
+## Format
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+- **type** + **:** + **espace** + **description** (obligatoire)
+- **scope** optionnel : section du code, ex. `feat(auth):`, `fix(api):`
+- **body** : contexte supplémentaire, séparé par une ligne vide
+- **footer** : `BREAKING CHANGE:`, `Refs: #123`, `Reviewed-by:`, etc.
+
+## Types à utiliser
+
+| Type | Usage |
+|------|--------|
+| `feat` | Nouvelle fonctionnalité (MINOR en SemVer) |
+| `fix` | Correction de bug (PATCH) |
+| `docs` | Documentation seule |
+| `test` | Tests (ajout ou correction) |
+| `refactor` | Refactor sans changement de comportement |
+| `perf` | Amélioration performance |
+| `ci` | CI / GitHub Actions |
+| `build` | Build system, dépendances, EAS |
+| `chore` | Maintenance (hors src/tests) |
+| `style` | Formatage, pas de changement de logique |
+
+`feat` et `fix` sont les types principaux ; les autres sont valides selon le spec.
+
+## Breaking changes
+
+- Footer : `BREAKING CHANGE: description`
+- Ou `!` après le type : `feat(api)!: remove legacy endpoint`
+
+## Exemples (ce repo)
+
+```
+feat(stock): normalize product names to sentence case
+
+fix(auth): retry once after silent refresh on 401
+
+ci: replace EAS build job with lint and test only
+
+docs: add CONTRIBUTING and docs index
+
+test(api): cover report PDF download errors
+
+refactor(push): route inbox notifications without feature flag
+```
+
+## Règles pratiques
+
+- **Un commit = un changement logique** ; préférer plusieurs commits plutôt qu’un fourre-tout.
+- **Description** : impératif, ~72 caractères max, pas de point final.
+- **Ne pas** commiter `.env`, secrets, `google-services.json`.
+- Squash PR : le message final du merge doit aussi respecter ce format.
+
+## Corrélation SemVer (releases)
+
+- `fix` → PATCH
+- `feat` → MINOR
+- `BREAKING CHANGE` → MAJOR
