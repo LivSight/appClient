@@ -24,17 +24,22 @@ export default function StockProductCard({ item }: { item: StockProductCardItem 
       style={[
         card.base,
         {
-          paddingHorizontal: 22,
-          paddingVertical: 18,
+          paddingHorizontal: 16,
+          paddingVertical: 12,
           flexDirection: "row",
           alignItems: "center",
         },
       ]}
     >
-      <View style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+      <View style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
         <AppText
-          style={{ ...typography.subtitle, fontFamily: fonts.bodySemi, color: colors.text }}
-          numberOfLines={2}
+          style={{
+            fontSize: 15,
+            lineHeight: 20,
+            fontFamily: fonts.bodySemi,
+            color: colors.text,
+          }}
+          numberOfLines={1}
           ellipsizeMode="tail"
         >
           {item.name}
@@ -43,7 +48,7 @@ export default function StockProductCard({ item }: { item: StockProductCardItem 
           variant="dense"
           style={{
             ...typography.cardSubtitle,
-            marginTop: 4,
+            marginTop: 2,
             fontFamily: fonts.bodyMedium,
             color: defectiveQty > 0 ? "#B45309" : colors.muted,
           }}
@@ -55,9 +60,9 @@ export default function StockProductCard({ item }: { item: StockProductCardItem 
 
       <View
         style={{
-          minWidth: 44,
-          paddingHorizontal: 14,
-          paddingVertical: 8,
+          minWidth: 40,
+          paddingHorizontal: 12,
+          paddingVertical: 6,
           borderRadius: radii.pill,
           backgroundColor: low ? "#FEF2F2" : "#EFF8FF",
           alignItems: "center",
@@ -67,7 +72,8 @@ export default function StockProductCard({ item }: { item: StockProductCardItem 
         <AppText
           variant="dense"
           style={{
-            ...typography.subtitle,
+            fontSize: 15,
+            lineHeight: 20,
             fontFamily: fonts.bodyBold,
             color: low ? "#DC2626" : colors.primary,
           }}

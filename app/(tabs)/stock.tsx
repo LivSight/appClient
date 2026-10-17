@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useLoadEffect } from "@/lib/hooks/useLoadEffect";
-import { View, Pressable, ActivityIndicator } from "react-native";
+import { View, Pressable, ActivityIndicator, type ScrollView } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import EmptyStateCard from "../../components/EmptyStateCard";
@@ -15,6 +15,8 @@ import StockProductCard, { type StockProductCardItem } from "@/components/StockP
 import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 import { useLowStockCount } from "@/lib/stock/lowStockCountContext";
 import { filterStockItems } from "@/lib/stock/filterStockItems";
+import { paginateStockList } from "@/lib/stock/paginateStockList";
+import { sortStockItemsByName } from "@/lib/stock/sortStockItems";
 import { stockSummaryFromItems } from "@/lib/stock/stockSummary";
 import { formatDbText } from "@/lib/formatDisplayText";
 
@@ -53,10 +55,24 @@ function toRows(packages: Package[]): Row[] {
 export default function StockScreen() {
   const { addedName } = useLocalSearchParams<{ addedName?: string }>();
   const { refreshLowStockCount } = useLowStockCount();
+  const scrollViewRef = useRef<ScrollView>(null);
   const [items, setItems] = useState<Row[]>([]);
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const scrollToTop = useCallback(() => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  }, []);
+
+  const goToPage = useCallback(
+    (nextPage: number) => {
+      setPage(nextPage);
+      scrollToTop();
+    },
+    [scrollToTop],
+  );
 
   const load = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     if (mode === "initial") setLoading(true);
@@ -64,6 +80,7 @@ export default function StockScreen() {
     try {
       const packages = await listPackages();
       setItems(toRows(packages));
+      setPage(1);
       await refreshLowStockCount();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur de chargement");
@@ -98,12 +115,22 @@ export default function StockScreen() {
     [items],
   );
 
-  const filteredItems = useMemo(() => filterStockItems(items, query), [items, query]);
+  const sortedItems = useMemo(() => sortStockItemsByName(items), [items]);
+  const filteredItems = useMemo(() => filterStockItems(sortedItems, query), [sortedItems, query]);
   const hasActiveSearch = query.trim().length > 0;
+
+  const {
+    visible: visibleItems,
+    hasPrevious,
+    hasNext,
+    totalPages,
+    page: currentPage,
+  } = useMemo(() => paginateStockList(filteredItems, page), [filteredItems, page]);
 
   return (
     <View style={{ flex: 1 }}>
       <ScreenLayout
+        scrollViewRef={scrollViewRef}
         refreshing={refreshing}
         onRefresh={onRefresh}
         header={
@@ -150,7 +177,10 @@ export default function StockScreen() {
             <AppTextInput
               testID="stock-search-input"
               value={query}
-              onChangeText={setQuery}
+              onChangeText={(text) => {
+                setQuery(text);
+                setPage(1);
+              }}
               placeholder="Rechercher un produit…"
               placeholderTextColor="rgba(60,74,60,0.4)"
               style={{
@@ -243,10 +273,89 @@ export default function StockScreen() {
             </AppText>
           </View>
         ) : (
-          <View style={{ marginTop: 24, gap: 32 }}>
-            {filteredItems.map((it) => (
+          <View style={{ marginTop: 16, gap: 10 }}>
+            <AppText
+              variant="dense"
+              style={{
+                fontSize: 13,
+                lineHeight: 18,
+                fontFamily: fonts.bodyMedium,
+                color: "rgba(60,74,60,0.65)",
+                marginBottom: 2,
+              }}
+              numberOfLines={1}
+            >
+              Page {currentPage} sur {totalPages}
+            </AppText>
+            {visibleItems.map((it) => (
               <StockProductCard key={it.id} item={it} />
             ))}
+            {totalPages > 1 ? (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
+                  marginTop: 6,
+                  marginBottom: 8,
+                }}
+              >
+                <Pressable
+                  testID="stock-page-prev"
+                  disabled={!hasPrevious}
+                  onPress={() => goToPage(Math.max(1, currentPage - 1))}
+                  style={{
+                    flex: 1,
+                    minHeight: 44,
+                    paddingVertical: 10,
+                    borderRadius: radii.pill,
+                    backgroundColor: hasPrevious ? "#EFF8FF" : "#F3F4F5",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    opacity: hasPrevious ? 1 : 0.55,
+                  }}
+                >
+                  <AppText
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 20,
+                      fontFamily: fonts.bodySemi,
+                      color: hasPrevious ? colors.primary : "rgba(60,74,60,0.45)",
+                    }}
+                    numberOfLines={1}
+                  >
+                    Précédent
+                  </AppText>
+                </Pressable>
+                <Pressable
+                  testID="stock-page-next"
+                  disabled={!hasNext}
+                  onPress={() => goToPage(currentPage + 1)}
+                  style={{
+                    flex: 1,
+                    minHeight: 44,
+                    paddingVertical: 10,
+                    borderRadius: radii.pill,
+                    backgroundColor: hasNext ? colors.primary : "#F3F4F5",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    opacity: hasNext ? 1 : 0.55,
+                  }}
+                >
+                  <AppText
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 20,
+                      fontFamily: fonts.bodySemi,
+                      color: hasNext ? colors.white : "rgba(60,74,60,0.45)",
+                    }}
+                    numberOfLines={1}
+                  >
+                    Suivant
+                  </AppText>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         )}
       </ScreenLayout>
