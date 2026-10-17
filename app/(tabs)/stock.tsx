@@ -6,12 +6,15 @@ import { useFocusEffect } from "expo-router/react-navigation";
 import EmptyStateCard from "../../components/EmptyStateCard";
 import ScreenLayout from "../../components/ScreenLayout";
 import StatusChipRow from "@/components/StatusChipRow";
+import SolarIcon from "@/components/SolarIcon";
+import AppTextInput from "@/components/AppTextInput";
 import { colors, fonts, radii, typography } from "../../theme/tokens";
 import AppText from "../../components/AppText";
 import { listPackages, makeClientId, type Package } from "@/lib/api/packages";
 import StockProductCard, { type StockProductCardItem } from "@/components/StockProductCard";
 import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 import { useLowStockCount } from "@/lib/stock/lowStockCountContext";
+import { filterStockItems } from "@/lib/stock/filterStockItems";
 import { stockSummaryFromQuantities } from "@/lib/stock/stockSummary";
 import { formatDbText } from "@/lib/formatDisplayText";
 
@@ -47,6 +50,7 @@ export default function StockScreen() {
   const { addedName } = useLocalSearchParams<{ addedName?: string }>();
   const { refreshLowStockCount } = useLowStockCount();
   const [items, setItems] = useState<Row[]>([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,6 +88,9 @@ export default function StockScreen() {
     [items],
   );
 
+  const filteredItems = useMemo(() => filterStockItems(items, query), [items, query]);
+  const hasActiveSearch = query.trim().length > 0;
+
   return (
     <View style={{ flex: 1 }}>
       <ScreenLayout
@@ -109,6 +116,43 @@ export default function StockScreen() {
             ]}
           />
         </View>
+
+        {!loading && !error && items.length > 0 ? (
+          <View
+            style={{
+              minHeight: 48,
+              borderRadius: radii.pill,
+              backgroundColor: "#F3F4F5",
+              paddingHorizontal: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 8,
+            }}
+          >
+            <SolarIcon name="solar:magnifer-outline" size={20} color="rgba(60,74,60,0.45)" />
+            <AppTextInput
+              testID="stock-search-input"
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Rechercher un produit…"
+              placeholderTextColor="rgba(60,74,60,0.4)"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontSize: 14,
+                lineHeight: 20,
+                fontFamily: fonts.bodyRegular,
+                color: colors.text,
+                paddingVertical: 10,
+              }}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
+              variant="dense"
+            />
+          </View>
+        ) : null}
 
         {SHOW_ADD_PRODUCT_BUTTON && !loading && !error && items.length > 0 ? (
           <Pressable
@@ -167,9 +211,24 @@ export default function StockScreen() {
                 : []
             }
           />
+        ) : filteredItems.length === 0 ? (
+          <View style={{ marginTop: 24, paddingVertical: 16 }}>
+            <AppText style={{ fontSize: 15, lineHeight: 22, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2}>
+              Aucun produit trouvé
+            </AppText>
+            <AppText
+              variant="dense"
+              style={{ marginTop: 6, fontSize: 13, lineHeight: 18, fontFamily: fonts.bodyRegular, color: "rgba(60,74,60,0.65)" }}
+              numberOfLines={2}
+            >
+              {hasActiveSearch
+                ? `Aucun résultat pour « ${query.trim()} ».`
+                : "Modifiez votre recherche."}
+            </AppText>
+          </View>
         ) : (
-          <View style={{ marginTop: 32, gap: 32 }}>
-            {items.map((it) => (
+          <View style={{ marginTop: 24, gap: 32 }}>
+            {filteredItems.map((it) => (
               <StockProductCard key={it.id} item={it} />
             ))}
           </View>
