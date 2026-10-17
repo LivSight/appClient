@@ -5,16 +5,20 @@ import { Platform } from "react-native";
 
 export type PushPlatform = "ios" | "android";
 
+/** Identifies this app to the backend — required by POST /api/push-tokens. */
+const PUSH_APP = "client";
+
 export async function registerPushToken(expoPushToken: string): Promise<void> {
   const platform: PushPlatform = Platform.OS === "ios" ? "ios" : "android";
   const url = `${API_BASE_URL}/api/push-tokens`;
 
-  logger.info("push", "POST /api/push-tokens", { platform });
+  const payload = { expoPushToken, platform, app: PUSH_APP };
+  logger.info("push", "POST /api/push-tokens", payload);
 
   const res = await apiFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ expoPushToken, platform }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
