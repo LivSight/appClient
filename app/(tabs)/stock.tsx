@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useLoadEffect } from "@/lib/hooks/useLoadEffect";
-import { View, Pressable, ActivityIndicator, type ScrollView } from "react-native";
+import { Alert, View, Pressable, ActivityIndicator, type ScrollView } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import EmptyStateCard from "../../components/EmptyStateCard";
@@ -11,14 +11,21 @@ import AppTextInput from "@/components/AppTextInput";
 import { colors, fonts, radii, typography } from "../../theme/tokens";
 import AppText from "../../components/AppText";
 import { listPackages, makeClientId, type Package } from "@/lib/api/packages";
+import { toReportDateParam } from "@/lib/api/reports";
 import StockProductCard, { type StockProductCardItem } from "@/components/StockProductCard";
 import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 import { useLowStockCount } from "@/lib/stock/lowStockCountContext";
 import { filterStockItems } from "@/lib/stock/filterStockItems";
 import { paginateStockList } from "@/lib/stock/paginateStockList";
+import {
+  downloadAndShareReportPdf,
+  isPdfPreviewAvailable,
+  PDF_MODULES_UNAVAILABLE_MESSAGE,
+} from "@/lib/reports/reportPdf";
 import { sortStockItemsByName } from "@/lib/stock/sortStockItems";
 import { stockSummaryFromItems } from "@/lib/stock/stockSummary";
 import { formatDbText } from "@/lib/formatDisplayText";
+import { logger } from "@/lib/logger";
 
 /** Set to true to show the "Ajouter un produit" CTAs again. */
 const SHOW_ADD_PRODUCT_BUTTON = false;
@@ -61,6 +68,7 @@ export default function StockScreen() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openingReport, setOpeningReport] = useState(false);
 
   const scrollToTop = useCallback(() => {
     scrollViewRef.current?.scrollTo({ y: 0, animated: true });
@@ -73,6 +81,31 @@ export default function StockScreen() {
     },
     [scrollToTop],
   );
+
+  const openStockReport = useCallback(async () => {
+    if (openingReport) return;
+    const today = toReportDateParam(new Date());
+    if (isPdfPreviewAvailable()) {
+      router.push({
+        pathname: "/rapport-pdf-preview",
+        params: { kind: "stock", start: today, end: today },
+      });
+      return;
+    }
+    setOpeningReport(true);
+    try {
+      await downloadAndShareReportPdf("stock", today, today);
+    } catch (e: unknown) {
+      logger.warn("stock", "stock report pdf failed", e);
+      const message =
+        e instanceof Error && e.message === PDF_MODULES_UNAVAILABLE_MESSAGE
+          ? e.message
+          : "Le rapport de stock n'a pas pu être ouvert. Vérifiez votre connexion et réessayez.";
+      Alert.alert("Rapport indisponible", message);
+    } finally {
+      setOpeningReport(false);
+    }
+  }, [openingReport]);
 
   const load = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     if (mode === "initial") setLoading(true);
@@ -159,6 +192,42 @@ export default function StockScreen() {
             ]}
           />
         </View>
+
+        {!loading && !error ? (
+          <Pressable
+            testID="stock-view-report"
+            onPress={() => void openStockReport()}
+            disabled={openingReport}
+            style={{
+              minHeight: 48,
+              paddingVertical: 12,
+              paddingHorizontal: 20,
+              borderRadius: radii.pill,
+              backgroundColor: colors.primary,
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 14,
+              opacity: openingReport ? 0.7 : 1,
+            }}
+          >
+            {openingReport ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <AppText
+                style={{
+                  fontSize: 14,
+                  lineHeight: 20,
+                  fontFamily: fonts.bodySemi,
+                  color: colors.white,
+                  textAlign: "center",
+                }}
+                numberOfLines={1}
+              >
+                Visualiser et télécharger
+              </AppText>
+            )}
+          </Pressable>
+        ) : null}
 
         {!loading && !error && items.length > 0 ? (
           <View
