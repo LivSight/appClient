@@ -1,3 +1,22 @@
+import {
+  computeInboxItemUnread,
+  computeTotalUnreadCount,
+  loadClientTicketsByNavId,
+  loadConversationList,
+  totalUnreadFrom,
+} from "@/lib/api/inbox";
+import { resetLocalReadStoreForTests, setLocalReadAt } from "@/lib/api/localReadStore";
+import {
+  fetchTicketInbox,
+  InboxEndpointUnavailableError,
+  listClientTicketForTransaction,
+  listTicketMessages,
+  resolveNumericTransactionId,
+  type TicketInboxItem,
+} from "@/lib/api/tickets";
+import { listTransactions } from "@/lib/api/transactions";
+import { getCurrentUserId } from "@/lib/auth/currentUser";
+
 jest.mock("@/lib/api/tickets", () => {
   const actual = jest.requireActual("@/lib/api/tickets");
   return {
@@ -20,25 +39,6 @@ jest.mock("@/lib/api/transactions", () => {
 jest.mock("@/lib/auth/currentUser", () => ({
   getCurrentUserId: jest.fn(),
 }));
-
-import {
-  computeInboxItemUnread,
-  computeTotalUnreadCount,
-  loadClientTicketsByNavId,
-  loadConversationList,
-  totalUnreadFrom,
-} from "@/lib/api/inbox";
-import { resetLocalReadStoreForTests, setLocalReadAt } from "@/lib/api/localReadStore";
-import {
-  fetchTicketInbox,
-  InboxEndpointUnavailableError,
-  listClientTicketForTransaction,
-  listTicketMessages,
-  resolveNumericTransactionId,
-  type TicketInboxItem,
-} from "@/lib/api/tickets";
-import { listTransactions } from "@/lib/api/transactions";
-import { getCurrentUserId } from "@/lib/auth/currentUser";
 
 const ME = 3;
 const AGENT = 7;
@@ -178,7 +178,7 @@ describe("loadConversationList", () => {
       id: "345",
       refLabel: "REF: LVS-2026-00345",
       type: "livraison",
-      title: "Colis fragile",
+      title: "Colis Fragile",
       locationLine: "Bastos",
       amountXaf: 15000,
       ticketId: 12,

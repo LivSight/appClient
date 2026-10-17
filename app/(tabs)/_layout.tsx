@@ -4,10 +4,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "../../components/AppText";
 import SolarIcon from "../../components/SolarIcon";
 import { useUnreadCount } from "@/lib/unreadCount";
+import { useLowStockCount } from "@/lib/stock/lowStockCountContext";
 import { colors, fonts } from "../../theme/tokens";
 
 export default function TabsLayout() {
   const { totalUnread } = useUnreadCount();
+  const { lowStockCount } = useLowStockCount();
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, Platform.OS === "android" ? 10 : 6);
 
@@ -70,6 +72,7 @@ export default function TabsLayout() {
         name="stock"
         options={{
           title: "Stock",
+          tabBarBadge: lowStockCount > 0 ? lowStockCount : undefined,
           tabBarIcon: ({ color, size }) => <SolarIcon name="solar:widget-5-outline" color={color} size={size ?? 24} />,
         }}
       />

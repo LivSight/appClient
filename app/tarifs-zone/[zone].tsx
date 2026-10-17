@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import AppText from "@/components/AppText";
@@ -169,9 +169,8 @@ export default function TarifsZoneDetailScreen() {
 
   return (
     <ScreenLayout
-      scrollViewProps={{
-        refreshControl: <RefreshControl refreshing={refreshing} onRefresh={() => void loadZone("refresh")} />,
-      }}
+      refreshing={refreshing}
+      onRefresh={() => void loadZone("refresh")}
       header={
         <View style={{ flexDirection: "row", alignItems: "center", minHeight: 44, paddingVertical: 8, marginBottom: 12 }}>
           <Pressable onPress={() => router.back()} hitSlop={10} style={{ width: 44, height: 44, justifyContent: "center" }}>

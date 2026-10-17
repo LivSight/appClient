@@ -15,7 +15,7 @@ export default function AnnulationConfirmeeScreen() {
   }, []);
 
   return (
-    <ScreenLayout scrollable={false}>
+    <ScreenLayout>
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 24 }}>
         <LottieView
           source={require("../assets/lottie/success-check.json")}

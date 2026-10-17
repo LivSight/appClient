@@ -28,6 +28,7 @@ import {
   inboxCategoryBannerLabel,
   isCollectingCash,
 } from "@/lib/api/transactionUi";
+import { formatDbText } from "@/lib/formatDisplayText";
 import { colors, fonts, radii, spacing, typography } from "@/theme/tokens";
 
 type TxInfo = {
@@ -55,8 +56,8 @@ function mapTransactionToTxInfo(tx: Transaction): TxInfo {
 
   const location =
     typeRaw === "expedition"
-      ? `${tx.departure?.city?.trim() || "—"} → ${tx.destination?.city?.trim() || "—"}`
-      : tx.destination?.street?.trim() || "—";
+      ? `${formatDbText(tx.departure?.city) || "—"} → ${formatDbText(tx.destination?.city) || "—"}`
+      : formatDbText(tx.destination?.street) || "—";
 
   return {
     ref,

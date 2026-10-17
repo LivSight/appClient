@@ -9,13 +9,11 @@ import { colors, fonts, radii, typography } from "../../theme/tokens";
 import AppText from "../../components/AppText";
 import { listPackages, makeClientId, type Package } from "@/lib/api/packages";
 import StockProductCard, { type StockProductCardItem } from "@/components/StockProductCard";
+import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
+import { useLowStockCount } from "@/lib/stock/lowStockCountContext";
+import { formatDbText } from "@/lib/formatDisplayText";
 
 type Row = StockProductCardItem;
-
-function toSentenceCase(s: string): string {
-  if (!s) return s;
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-}
 
 function toRows(packages: Package[]): Row[] {
   // The backend can return several packages with the same name for a user, and
@@ -23,7 +21,7 @@ function toRows(packages: Package[]): Row[] {
   const seen = new Map<string, number>();
   return packages
     .map((p) => {
-      const name = toSentenceCase(String(p?.package_name ?? "").trim());
+      const name = formatDbText(p?.package_name);
       if (!name) return null;
       const qty = Number.isFinite(Number(p?.quantity)) ? Math.max(0, Math.floor(Number(p.quantity))) : 0;
       const baseId = makeClientId(p);
@@ -32,7 +30,7 @@ function toRows(packages: Package[]): Row[] {
       return {
         id: occurrence > 1 ? `${baseId}#${occurrence}` : baseId,
         name,
-        subtitle: String(p?.description ?? ""),
+        subtitle: formatDbText(p?.description),
         qty,
         low: qty <= 2,
       } satisfies Row;
@@ -42,22 +40,26 @@ function toRows(packages: Package[]): Row[] {
 
 export default function StockScreen() {
   const { addedName } = useLocalSearchParams<{ addedName?: string }>();
+  const { refreshLowStockCount } = useLowStockCount();
   const [items, setItems] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (mode: "initial" | "refresh" = "initial") => {
+    if (mode === "initial") setLoading(true);
     setError(null);
     try {
       const packages = await listPackages();
       setItems(toRows(packages));
+      await refreshLowStockCount();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur de chargement");
     } finally {
-      setLoading(false);
+      if (mode === "initial") setLoading(false);
     }
-  }, []);
+  }, [refreshLowStockCount]);
+
+  const { refreshing, onRefresh } = usePullToRefresh(() => load("refresh"));
 
   useFocusEffect(
     useCallback(() => {
@@ -75,6 +77,8 @@ export default function StockScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScreenLayout
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         header={
           <View style={{ paddingBottom: 10 }}>
             <AppText style={[typography.screenTitle, { fontSize: 26, lineHeight: 34 }]} numberOfLines={2}>
@@ -104,7 +108,7 @@ export default function StockScreen() {
           </Pressable>
         ) : null}
 
-        {loading ? (
+        {loading && !refreshing ? (
           <View style={{ paddingVertical: 28, alignItems: "center" }}>
             <ActivityIndicator />
           </View>

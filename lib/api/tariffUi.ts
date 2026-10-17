@@ -1,4 +1,5 @@
 import type { City, DeliveryFeeSettings, DeliveryFeeZone, Neighborhood, TariffsCatalog } from "@/lib/api/tariffs";
+import { formatDbText } from "@/lib/formatDisplayText";
 
 export type TariffZoneCard = {
   zoneId: string;
@@ -54,7 +55,7 @@ export function zoneDisplayLabel(zone: Pick<DeliveryFeeZone, "sort_order" | "dis
 }
 
 export function cityDisplayLabel(city: City, countryCode = "CM"): string {
-  const name = city.name?.trim() || "Ville";
+  const name = formatDbText(city.name) || "Ville";
   return `${name}, ${countryCode}`;
 }
 
@@ -137,7 +138,7 @@ export function buildOtherTariffs(
 export function neighborhoodsForZone(neighborhoods: Neighborhood[], zoneId: number): string[] {
   return neighborhoods
     .filter((n) => n.zone_id === zoneId)
-    .map((n) => n.name.trim())
+    .map((n) => formatDbText(n.name))
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, "fr"));
 }
@@ -147,7 +148,7 @@ export function uniqueNeighborhoodNames(neighborhoods: Neighborhood[]): string[]
   const seen = new Set<string>();
   const names: string[] = [];
   for (const n of neighborhoods) {
-    const name = n.name?.trim();
+    const name = formatDbText(n.name);
     if (!name) continue;
     const key = name.toLowerCase();
     if (seen.has(key)) continue;

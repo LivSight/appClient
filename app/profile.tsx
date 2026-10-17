@@ -14,6 +14,7 @@ import { getCurrentUser } from "@/lib/auth/currentUser";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { displayEmail, displayFullName, displayInitials, displayPhone } from "@/lib/userDisplay";
 import { logger } from "@/lib/logger";
+import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 
 const SUPPORT_EMAIL = "livsight@gmail.com";
 const APP_VERSION = Constants.expoConfig?.version;
@@ -85,9 +86,9 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const loadUser = useCallback(async () => {
+  const loadUser = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     try {
-      setLoading(true);
+      if (mode === "initial") setLoading(true);
       setError(null);
       const data = await getCurrentUser();
       if (!data) {
@@ -101,9 +102,11 @@ export default function ProfileScreen() {
       setUser(null);
       setError("Vérifiez votre connexion internet et réessayez.");
     } finally {
-      setLoading(false);
+      if (mode === "initial") setLoading(false);
     }
   }, []);
+
+  const { refreshing, onRefresh } = usePullToRefresh(() => loadUser("refresh"));
 
   useFocusEffect(
     useCallback(() => {
@@ -164,6 +167,8 @@ export default function ProfileScreen() {
 
   return (
     <ScreenLayout
+      refreshing={refreshing}
+      onRefresh={onRefresh}
       header={
         <View style={{ minHeight: 44, paddingVertical: 8, flexDirection: "row", alignItems: "center" }}>
           <Pressable
@@ -185,7 +190,7 @@ export default function ProfileScreen() {
         </View>
       }
     >
-      {loading ? (
+      {loading && !refreshing ? (
         <View style={{ alignItems: "center", paddingVertical: 48 }}>
           <ActivityIndicator color={colors.primary} />
           <AppText style={{ ...typography.subtitle, marginTop: 12 }} numberOfLines={1}>

@@ -1,6 +1,21 @@
 import type { Package } from "@/lib/api/packages";
 
-export type ReportRange = "Journalier" | "Hebdo" | "Mensuel" | "Personnalisé";
+export type ReportRange = "Journalier" | "Hier" | "Hebdo" | "Mensuel" | "Personnalisé";
+
+export function dateRangeLabel(range: ReportRange): string {
+  switch (range) {
+    case "Journalier":
+      return "Aujourd'hui";
+    case "Hier":
+      return "Hier";
+    case "Hebdo":
+      return "Cette semaine";
+    case "Mensuel":
+      return "Ce mois";
+    case "Personnalisé":
+      return "Personnalisé";
+  }
+}
 
 export type ReportTransaction = {
   created_at?: string;
@@ -132,7 +147,12 @@ export function resolveReportPeriodBounds(input: {
     }
     return getPeriodBounds("Journalier", input.now);
   }
-  if (input.range === "Journalier" || input.range === "Hebdo" || input.range === "Mensuel") {
+  if (
+    input.range === "Journalier" ||
+    input.range === "Hier" ||
+    input.range === "Hebdo" ||
+    input.range === "Mensuel"
+  ) {
     return getPeriodBounds(input.range, input.now);
   }
   return getPeriodBounds("Journalier", input.now);
@@ -150,6 +170,17 @@ export function getPeriodBounds(
     return {
       current: { start: currentStart, end: currentEnd },
       previous: { start: startOfDay(prevDay), end: endOfDay(prevDay) },
+    };
+  }
+
+  if (range === "Hier") {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dayBefore = new Date(yesterday);
+    dayBefore.setDate(dayBefore.getDate() - 1);
+    return {
+      current: { start: startOfDay(yesterday), end: endOfDay(yesterday) },
+      previous: { start: startOfDay(dayBefore), end: endOfDay(dayBefore) },
     };
   }
 
@@ -337,7 +368,12 @@ export function formatPeriodLabel(
     }
     return `Du ${formatDateLongFr(start)} au ${formatDateLongFr(end)}`;
   }
-  if (range === "Journalier") return `Aujourd’hui — ${formatDateLongFr(now)}`;
+  if (range === "Journalier") return `Aujourd’hui, ${formatDateLongFr(now)}`;
+  if (range === "Hier") {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return `Hier, ${formatDateLongFr(yesterday)}`;
+  }
   if (range === "Mensuel") return formatMonthYearFr(now);
   if (range === "Personnalisé") return "Choisissez une période";
   const start = startOfWeekMonday(now);

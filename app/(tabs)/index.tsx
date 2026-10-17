@@ -17,6 +17,8 @@ import {
 } from "@/lib/api/transactionUi";
 import type { User } from "@/lib/api/users";
 import { getCurrentUser } from "@/lib/auth/currentUser";
+import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
+import { formatDbText } from "@/lib/formatDisplayText";
 const CATEGORIES: CategoryItem[] = [
   { title: "Livraison", iconName: "solar:delivery-bold-duotone", onPress: () => router.push("/ma-demande-livraison") },
   { title: "Expédition", iconName: "solar:rocket-bold-duotone", onPress: () => router.push({ pathname: "/ma-demande-expedition", params: { quartier: "" } }) },
@@ -30,9 +32,9 @@ export default function AccueilScreen() {
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
-  const loadTransactions = useCallback(async () => {
+  const loadTransactions = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     try {
-      setLoading(true);
+      if (mode === "initial") setLoading(true);
       setError(null);
       const data = await listTransactions();
       setTxns(data);
@@ -40,9 +42,24 @@ export default function AccueilScreen() {
       setError(String(e instanceof Error ? e.message : e ?? "Erreur"));
       setTxns([]);
     } finally {
-      setLoading(false);
+      if (mode === "initial") setLoading(false);
     }
   }, []);
+
+  const loadUser = useCallback(async () => {
+    try {
+      const data = await getCurrentUser();
+      setUser(data);
+    } catch {
+      setUser(null);
+    }
+  }, []);
+
+  const refreshHome = useCallback(async () => {
+    await Promise.all([loadTransactions("refresh"), loadUser()]);
+  }, [loadTransactions, loadUser]);
+
+  const { refreshing, onRefresh } = usePullToRefresh(refreshHome);
 
   useFocusEffect(
     useCallback(() => {
@@ -52,26 +69,13 @@ export default function AccueilScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      let mounted = true;
-      (async () => {
-        try {
-          const data = await getCurrentUser();
-          if (!mounted) return;
-          setUser(data);
-        } catch {
-          if (!mounted) return;
-          setUser(null);
-        }
-      })();
-      return () => {
-        mounted = false;
-      };
-    }, []),
+      void loadUser();
+    }, [loadUser]),
   );
 
   const displayName = useMemo(() => {
-    const first = String(user?.first_name ?? "").trim();
-    const fullName = String(user?.name ?? "").trim();
+    const first = formatDbText(user?.first_name);
+    const fullName = formatDbText(user?.name);
     return first || fullName || "—";
   }, [user?.first_name, user?.name]);
 
@@ -102,6 +106,8 @@ export default function AccueilScreen() {
 
   return (
     <ScreenLayout
+      refreshing={refreshing}
+      onRefresh={onRefresh}
       header={
         <View style={{ paddingBottom: 20 }}>
           <HomeTopBar
@@ -130,7 +136,7 @@ export default function AccueilScreen() {
             style={{ marginBottom: 16 }}
           />
 
-          {loading ? (
+          {loading && !refreshing ? (
             <View style={{ borderRadius: radii.card, backgroundColor: colors.white, padding: 20 }}>
               <AppText style={{ ...typography.cardTitle, fontSize: 16, lineHeight: 24 }} numberOfLines={2}>
                 Chargement…
@@ -163,7 +169,7 @@ export default function AccueilScreen() {
       ) : null}
 
       {/* Promo Banner — welcome offer for new clients, re-order prompt for returning ones */}
-      {!loading && !error ? (
+      {!loading && !refreshing && !error ? (
         txns.length === 0 ? (
           <PromoBanner />
         ) : (

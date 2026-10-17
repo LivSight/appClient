@@ -1,5 +1,5 @@
-import MaDemandeProduitsForm from "@/components/MaDemandeProduitsForm";
+import DemandeWizard from "@/components/demande/DemandeWizard";
 
 export default function MaDemandeLivraisonScreen() {
-  return <MaDemandeProduitsForm flow="livraison" />;
+  return <DemandeWizard flow="livraison" />;
 }

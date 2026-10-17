@@ -15,6 +15,26 @@ export function todayIsoInSchedulingTimezone(now: Date = new Date()): string {
   return isoDateFromPartsInTimezone(now, SCHEDULING_TIMEZONE);
 }
 
+export function addDaysToIsoDate(iso: string, days: number): string {
+  const trimmed = iso.trim();
+  if (!ISO_DATE_RE.test(trimmed)) return iso;
+  const [year, month, day] = trimmed.split("-").map(Number);
+  if (!year || !month || !day) return iso;
+  const next = new Date(year, month - 1, day + days);
+  const y = next.getFullYear();
+  const m = String(next.getMonth() + 1).padStart(2, "0");
+  const d = String(next.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export function tomorrowIsoInSchedulingTimezone(now: Date = new Date()): string {
+  return addDaysToIsoDate(todayIsoInSchedulingTimezone(now), 1);
+}
+
+export function isScheduledDeliveryTomorrow(iso: string, now: Date = new Date()): boolean {
+  return iso.trim() === tomorrowIsoInSchedulingTimezone(now);
+}
+
 export function isoDateFromDateInSchedulingTimezone(date: Date): string {
   return isoDateFromPartsInTimezone(date, SCHEDULING_TIMEZONE);
 }

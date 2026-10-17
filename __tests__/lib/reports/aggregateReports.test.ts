@@ -1,7 +1,9 @@
 import {
   aggregateReports,
   countServiceTypes,
+  dateRangeLabel,
   filterTransactionsInRange,
+  formatPeriodLabel,
   getCustomPeriodBounds,
   getPeriodBounds,
   normalizeCustomDateRange,
@@ -43,6 +45,33 @@ describe("aggregateReports", () => {
       expect(current.start.getMonth()).toBe(4);
       expect(current.start.getFullYear()).toBe(2026);
       expect(previous.start.getMonth()).toBe(3);
+    });
+
+    it("Hier uses yesterday and the day before", () => {
+      const { current, previous } = getPeriodBounds("Hier", NOW);
+      expect(current.start.getDate()).toBe(29);
+      expect(current.end.getDate()).toBe(29);
+      expect(previous.start.getDate()).toBe(28);
+      expect(previous.end.getDate()).toBe(28);
+    });
+  });
+
+  describe("dateRangeLabel", () => {
+    it("returns short labels for preset ranges", () => {
+      expect(dateRangeLabel("Journalier")).toBe("Aujourd'hui");
+      expect(dateRangeLabel("Hier")).toBe("Hier");
+      expect(dateRangeLabel("Hebdo")).toBe("Cette semaine");
+      expect(dateRangeLabel("Mensuel")).toBe("Ce mois");
+      expect(dateRangeLabel("Personnalisé")).toBe("Personnalisé");
+    });
+  });
+
+  describe("formatPeriodLabel", () => {
+    it("formats Hier with yesterday date", () => {
+      const label = formatPeriodLabel("Hier", NOW);
+      expect(label).toContain("Hier");
+      expect(label).toContain("29");
+      expect(label).toContain("mai");
     });
   });
 

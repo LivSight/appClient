@@ -56,7 +56,7 @@ describe("mapTransactionToConversationItem", () => {
       }),
     );
 
-    expect(item?.title).toBe("2 robes + 1 sac");
+    expect(item?.title).toBe("2 Robes + 1 Sac");
     expect(item?.locationLine).toBe("Makepe");
     expect(item?.type).toBe("livraison");
   });
@@ -79,7 +79,7 @@ describe("mapTransactionToConversationItem", () => {
       }),
     );
 
-    expect(item?.title).toBe("Colis fragile");
+    expect(item?.title).toBe("Colis Fragile");
     expect(item?.locationLine).toBe("Yaoundé → Douala · Buca Voyage");
     expect(item?.type).toBe("expedition");
   });

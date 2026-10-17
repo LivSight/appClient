@@ -5,29 +5,53 @@ import {
   type Transaction,
   type UiStatusBucket,
 } from "@/lib/api/transactions";
+import { formatDbText } from "@/lib/formatDisplayText";
 import { formatScheduledDeliveryLabel } from "@/lib/scheduling/deliveryDate";
 
 export type TransactionStatusFilter = "Tout" | "Planifiée" | "En cours" | "Livré" | "Annulé";
 
-export type TransactionDateFilter = "Toutes dates" | "Aujourd'hui" | "7 derniers jours" | "30 derniers jours";
+export type TransactionDateFilter = "Toutes dates" | "Aujourd'hui" | "Hier" | "7 derniers jours" | "30 derniers jours";
 
 export const TRANSACTION_DATE_FILTERS: TransactionDateFilter[] = [
   "Toutes dates",
   "Aujourd'hui",
+  "Hier",
   "7 derniers jours",
   "30 derniers jours",
 ];
 
-/** Start of the filter window in ms, or null when the filter keeps everything. */
-export function dateFilterStartMs(filter: TransactionDateFilter, now: number = Date.now()): number | null {
+export type DateFilterBounds = { start: number; end: number };
+
+function startOfDayMs(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+function endOfDayMs(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime();
+}
+
+/** Inclusive local-time window for a transaction date filter, or null for all dates. */
+export function getDateFilterBounds(filter: TransactionDateFilter, now: number = Date.now()): DateFilterBounds | null {
   if (filter === "Toutes dates") return null;
 
+  const anchor = new Date(now);
+  if (filter === "Aujourd'hui") {
+    return { start: startOfDayMs(anchor), end: endOfDayMs(anchor) };
+  }
+  if (filter === "Hier") {
+    const yesterday = new Date(anchor);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return { start: startOfDayMs(yesterday), end: endOfDayMs(yesterday) };
+  }
+
   const DAY_MS = 24 * 60 * 60 * 1000;
-  return filter === "Aujourd'hui"
-    ? new Date(now).setHours(0, 0, 0, 0)
-    : filter === "7 derniers jours"
-      ? now - 7 * DAY_MS
-      : now - 30 * DAY_MS;
+  const start = filter === "7 derniers jours" ? now - 7 * DAY_MS : now - 30 * DAY_MS;
+  return { start, end: now };
+}
+
+/** Start of the filter window in ms, or null when the filter keeps everything. */
+export function dateFilterStartMs(filter: TransactionDateFilter, now: number = Date.now()): number | null {
+  return getDateFilterBounds(filter, now)?.start ?? null;
 }
 
 export function filterCardItemsByDate(
@@ -35,9 +59,12 @@ export function filterCardItemsByDate(
   filter: TransactionDateFilter,
   now: number = Date.now(),
 ): TransactionCardItem[] {
-  const start = dateFilterStartMs(filter, now);
-  if (start == null) return items;
-  return items.filter((item) => item.createdAtMs != null && item.createdAtMs >= start);
+  const bounds = getDateFilterBounds(filter, now);
+  if (bounds == null) return items;
+  return items.filter(
+    (item) =>
+      item.createdAtMs != null && item.createdAtMs >= bounds.start && item.createdAtMs <= bounds.end,
+  );
 }
 
 export function formatTransactionDateLabel(iso?: string): string {
@@ -131,19 +158,24 @@ export function inboxCategoryBannerLabel(tx: Transaction): string {
   return "COURSE";
 }
 
+function formatProductTitle(packageName: string, qty: number): string {
+  const titleBase = formatDbText(packageName) || "Colis";
+  return qty > 1 && !titleBase.toLowerCase().includes("x") ? `${titleBase} x${qty}` : titleBase;
+}
+
 function extractQuartier(tx: Transaction): string {
   const destStreet =
     typeof tx.destination?.street === "string" ? tx.destination.street : String(tx.destination_street ?? "");
   const fromStreet = destStreet.split("—")[0]?.trim() || destStreet.trim();
-  if (fromStreet.length) return fromStreet;
+  if (fromStreet.length) return formatDbText(fromStreet);
 
   const city =
     typeof tx.destination?.city === "string" ? tx.destination.city.trim() : String(tx.destination_city ?? "").trim();
-  if (city.length) return city;
+  if (city.length) return formatDbText(city);
 
   const receiver =
     String(tx.receiver_name ?? tx.receiverData?.name ?? "").trim();
-  if (receiver.length) return receiver;
+  if (receiver.length) return formatDbText(receiver);
 
   return "—";
 }
@@ -151,8 +183,7 @@ function extractQuartier(tx: Transaction): string {
 export function mapTransactionToCardItem(tx: Transaction): TransactionCardItem {
   const id = getTransactionNavigationId(tx);
   const qty = Number.isFinite(Number(tx.quantity)) ? Math.max(1, Math.floor(Number(tx.quantity))) : 1;
-  const titleBase = String(tx.package_name ?? "Colis");
-  const title = qty > 1 && !titleBase.includes("x") ? `${titleBase} x${qty}` : titleBase;
+  const title = formatProductTitle(String(tx.package_name ?? "Colis"), qty);
   const quartier = extractQuartier(tx);
   const status = mapTxnStatusToUi(tx.status);
   const collectingCash = isCollectingCash(tx);

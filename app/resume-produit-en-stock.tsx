@@ -8,7 +8,11 @@ import SolarIcon from "../components/SolarIcon";
 import CenteredScreenHeader from "../components/CenteredScreenHeader";
 import { card } from "../theme/styles";
 import { colors, fonts, radii, typography } from "../theme/tokens";
-import { hapticSuccess } from "@/lib/haptics";
+import { hapticError, hapticSuccess } from "@/lib/haptics";
+import {
+  formatCreateTransactionError,
+  getStockResumeValidationError,
+} from "@/lib/transactions/transactionFormValidation";
 import { buildExpeditionDepartureStreet, isExpeditionService, parseExpeditionClient } from "@/lib/expeditionClient";
 import { createTransaction, buildPayloadFromStockResume, type TransactionLineItem } from "@/lib/api/transactions";
 import { STOCK_DEPARTURE_STREET } from "@/lib/api/companySettings";
@@ -215,6 +219,21 @@ export default function ResumeProduitEnStockScreen() {
   // No useCallback: the React Compiler memoizes this; manual deps with member
   // expressions (deliveryFeeEstimate.total, expeditionClient?.address) block compilation.
   const handleConfirm = async () => {
+    const validationError = getStockResumeValidationError({
+      forExpedition,
+      items,
+      phone,
+      destinationQuartier,
+      scheduledDeliveryDate,
+      deliveryFeeLoading,
+      deliveryFeeAvailable: deliveryFeeEstimate.available,
+    });
+    if (validationError) {
+      await hapticError();
+      Alert.alert("Informations manquantes", validationError);
+      return;
+    }
+
     await hapticSuccess();
     const lineItems: TransactionLineItem[] = items.map((it) => ({
       package_name: it.name,
@@ -262,10 +281,11 @@ export default function ResumeProduitEnStockScreen() {
           ...(forExpedition ? { flow: "expedition" } : {}),
         },
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
+      await hapticError();
       Alert.alert(
         "Erreur",
-        String(e?.message ?? e ?? (forExpedition ? "Impossible de créer l'expédition." : "Impossible de créer la livraison.")),
+        formatCreateTransactionError(e, forExpedition ? "expedition" : "livraison"),
       );
     }
   };
@@ -279,6 +299,18 @@ export default function ResumeProduitEnStockScreen() {
           showBack
           compact
         />
+      }
+      footer={
+        <View
+          style={{
+            backgroundColor: "transparent",
+            paddingHorizontal: 24,
+            paddingTop: 14,
+            paddingBottom: 28,
+          }}
+        >
+          <FormButton label="Confirmer la commande" onPress={handleConfirm} />
+        </View>
       }
     >
       <AppText
@@ -501,10 +533,6 @@ export default function ResumeProduitEnStockScreen() {
             )}
           </Card>
         </View>
-      </View>
-
-      <View style={{ marginTop: 24 }}>
-        <FormButton label="Confirmer la commande" onPress={handleConfirm} />
       </View>
     </ScreenLayout>
   );

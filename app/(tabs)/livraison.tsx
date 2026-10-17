@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { View, Pressable, RefreshControl } from "react-native";
+import { View, Pressable } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import EmptyStateCard from "../../components/EmptyStateCard";
@@ -79,17 +79,9 @@ export default function LivraisonScreen() {
 
   return (
     <ScreenLayout
-      scrollViewProps={{
-        refreshControl: (
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              void loadTransactions("refresh");
-            }}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        ),
+      refreshing={refreshing}
+      onRefresh={() => {
+        void loadTransactions("refresh");
       }}
       header={
         <View style={{ paddingBottom: 10 }}>

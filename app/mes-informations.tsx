@@ -13,7 +13,9 @@ import type { User } from "@/lib/api/users";
 import { updateCurrentUser } from "@/lib/api/users";
 import { getCurrentUser, resetCurrentUserIdCache } from "@/lib/auth/currentUser";
 import { displayFullName, displayInitials } from "@/lib/userDisplay";
+import { formatDbText } from "@/lib/formatDisplayText";
 import { logger } from "@/lib/logger";
+import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 
 type FormState = {
   first_name: string;
@@ -50,6 +52,13 @@ function formFromUser(user: User | null): FormState {
   };
 }
 
+function formatInfoValue(label: string, value?: string | null): string {
+  const v = String(value ?? "").trim();
+  if (!v) return "—";
+  if (label === "Email" || label === "Téléphone" || label === "Date de naissance") return v;
+  return formatDbText(v);
+}
+
 function InfoRow({ label, value, iconName }: { label: string; value?: string | null; iconName?: string }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 12 }}>
@@ -63,7 +72,7 @@ function InfoRow({ label, value, iconName }: { label: string; value?: string | n
           {label.toUpperCase()}
         </AppText>
         <AppText style={{ fontSize: 16, lineHeight: 22, fontFamily: fonts.bodySemi, color: colors.text, marginTop: 6 }} numberOfLines={3} ellipsizeMode="tail">
-          {value?.trim?.() ? value : "—"}
+          {formatInfoValue(label, value)}
         </AppText>
       </View>
     </View>
@@ -110,9 +119,9 @@ export default function MesInformationsScreen() {
   const fullName = useMemo(() => displayFullName(user), [user]);
   const initials = useMemo(() => displayInitials(user), [user]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     try {
-      setLoading(true);
+      if (mode === "initial") setLoading(true);
       setError(null);
       const data = await getCurrentUser();
       if (!data) {
@@ -126,9 +135,11 @@ export default function MesInformationsScreen() {
       setUser(null);
       setError("Vérifiez votre connexion internet et réessayez.");
     } finally {
-      setLoading(false);
+      if (mode === "initial") setLoading(false);
     }
   }, []);
+
+  const { refreshing, onRefresh } = usePullToRefresh(() => load("refresh"));
 
   useLoadEffect(load);
 
@@ -187,6 +198,8 @@ export default function MesInformationsScreen() {
 
   return (
     <ScreenLayout
+      refreshing={refreshing}
+      onRefresh={onRefresh}
       scrollViewProps={{ keyboardShouldPersistTaps: "handled" }}
       header={
         <View style={{ flexDirection: "row", alignItems: "center", minHeight: 44, paddingVertical: 8, marginBottom: 12 }}>
@@ -220,7 +233,7 @@ export default function MesInformationsScreen() {
         </View>
       }
     >
-      {loading ? (
+      {loading && !refreshing ? (
         <View style={[card.base, { padding: 20 }]}>
           <AppText style={{ ...typography.cardTitle, fontSize: 16, lineHeight: 24 }} numberOfLines={2}>
             Chargement…

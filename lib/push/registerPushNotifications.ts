@@ -4,10 +4,9 @@ import { Platform } from "react-native";
 import { registerPushToken, deletePushToken } from "@/lib/api/pushTokens";
 import { getEASProjectId } from "@/lib/config/expoProject";
 import { logger } from "@/lib/logger";
-import { shouldRegisterPushNotifications } from "@/lib/push/pushConfig";
 import {
   clearRegisteredPushToken,
-  getRegisteredPushToken,
+  getRegisteredPushTokenAsync,
   rememberRegisteredPushToken,
 } from "@/lib/push/pushTokenStore";
 
@@ -37,11 +36,6 @@ async function ensureAndroidChannel() {
  * Requests permission, obtains Expo push token, and registers it with backend_core via gateway.
  */
 export async function registerPushNotificationsAsync(): Promise<void> {
-  if (!shouldRegisterPushNotifications()) {
-    logger.info("push", "Push registration skipped in dev (set EXPO_PUBLIC_ENABLE_PUSH=true to enable).");
-    return;
-  }
-
   if (!Device.isDevice) {
     logger.info("push", "Not a physical device, skipping.");
     return;
@@ -76,9 +70,13 @@ export async function registerPushNotificationsAsync(): Promise<void> {
 
 /** Best-effort removal of push token on logout (errors ignored). */
 export async function unregisterPushNotificationsAsync(): Promise<void> {
-  const token = getRegisteredPushToken();
+  const token = await getRegisteredPushTokenAsync();
   try {
-    await deletePushToken(token ?? undefined);
+    if (token) {
+      await deletePushToken(token);
+    } else {
+      logger.warn("push", "unregisterPushNotificationsAsync: no token found, skipping DELETE");
+    }
   } catch (e) {
     logger.warn("push", "unregisterPushNotificationsAsync failed", e);
   } finally {

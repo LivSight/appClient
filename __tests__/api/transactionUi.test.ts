@@ -254,6 +254,11 @@ describe("filterCardItemsByDate", () => {
     expect(filterCardItemsByDate(items, "Aujourd'hui", NOW).map((i) => i.id)).toEqual(["today"]);
   });
 
+  it("keeps only yesterday's items for Hier", () => {
+    const yesterday = item("yesterday", new Date(2026, 6, 8, 10, 0, 0).getTime());
+    expect(filterCardItemsByDate([...items, yesterday], "Hier", NOW).map((i) => i.id)).toEqual(["yesterday"]);
+  });
+
   it("keeps the last 7 days", () => {
     expect(filterCardItemsByDate(items, "7 derniers jours", NOW).map((i) => i.id)).toEqual(["today", "3-days"]);
   });

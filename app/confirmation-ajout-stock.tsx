@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import LottieView from "lottie-react-native";
 import ScreenLayout from "../components/ScreenLayout";
 import AppText from "../components/AppText";
+import { formatDbText } from "@/lib/formatDisplayText";
 import { colors, fonts, radii, typography } from "../theme/tokens";
 
 type Params = {
@@ -20,7 +21,7 @@ export default function ConfirmationAjoutStockScreen() {
   const addedSubtitle = typeof params.addedSubtitle === "string" ? params.addedSubtitle : "";
 
   const subtitle = useMemo(() => {
-    const parts = [addedName.trim(), addedSubtitle.trim()].filter(Boolean);
+    const parts = [formatDbText(addedName), formatDbText(addedSubtitle)].filter(Boolean);
     const base = parts.join(" • ");
     const qty = addedQty.trim() ? `Qté: ${addedQty.trim()}` : "";
     return [base, qty].filter(Boolean).join(" — ");
@@ -41,7 +42,7 @@ export default function ConfirmationAjoutStockScreen() {
   }, [addedName, addedQty, addedSubtitle]);
 
   return (
-    <ScreenLayout scrollable={false}>
+    <ScreenLayout>
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}>
         <LottieView
           source={require("../assets/lottie/success-check.json")}

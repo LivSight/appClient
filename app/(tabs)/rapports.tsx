@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, View, Pressable, RefreshControl, ActivityIndicator, useWindowDimensions } from "react-native";
+import { Alert, View, Pressable, ActivityIndicator, ScrollView, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import ScreenLayout from "../../components/ScreenLayout";
@@ -24,6 +24,7 @@ import {
 } from "@/lib/api/reports";
 import { downloadAndShareReportPdf, isPdfPreviewAvailable, PDF_MODULES_UNAVAILABLE_MESSAGE } from "@/lib/reports/reportPdf";
 import {
+  dateRangeLabel,
   formatDeltaPct,
   formatPeriodLabel,
   formatXaf,
@@ -100,6 +101,8 @@ function StatusChipRow({ chips }: { chips: StatusChip[] }) {
   );
 }
 
+const REPORT_RANGE_OPTIONS: ReportRange[] = ["Journalier", "Hier", "Hebdo", "Mensuel", "Personnalisé"];
+
 function RangeToggle({
   value,
   onChange,
@@ -107,52 +110,46 @@ function RangeToggle({
   value: ReportRange;
   onChange: (v: ReportRange) => void;
 }) {
-  const opts: ReportRange[] = ["Journalier", "Hebdo", "Mensuel", "Personnalisé"];
   return (
-    <View
-      style={{
-        minHeight: 48,
-        borderRadius: radii.pill,
-        backgroundColor: "#F1F3F5",
-        padding: 6,
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 6,
-        marginTop: 14,
-      }}
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ marginTop: 14 }}
+      contentContainerStyle={{ gap: 6, paddingRight: 4 }}
     >
-      {opts.map((o) => {
-        const active = o === value;
-        const label = o === "Personnalisé" ? "Perso." : o;
+      {REPORT_RANGE_OPTIONS.map((option) => {
+        const active = option === value;
         return (
           <Pressable
-            key={o}
-            onPress={() => onChange(o)}
+            key={option}
+            onPress={() => onChange(option)}
             style={{
-              flexGrow: 1,
-              flexBasis: o === "Personnalisé" ? "22%" : "23%",
-              minWidth: 72,
+              minHeight: 48,
+              minWidth: 88,
               borderRadius: radii.pill,
-              backgroundColor: active ? colors.white : "transparent",
+              backgroundColor: active ? colors.white : "#F1F3F5",
               alignItems: "center",
               justifyContent: "center",
               paddingVertical: 8,
-              paddingHorizontal: 4,
+              paddingHorizontal: 14,
             }}
           >
             <AppText
               variant="dense"
-              style={{ fontSize: 11, fontFamily: active ? fonts.bodyBold : fonts.bodySemi, color: colors.text }}
+              style={{
+                fontSize: 12,
+                lineHeight: 17,
+                fontFamily: active ? fonts.bodyBold : fonts.bodySemi,
+                color: colors.text,
+              }}
               numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
             >
-              {label}
+              {dateRangeLabel(option)}
             </AppText>
           </Pressable>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -576,9 +573,8 @@ export default function RapportsScreen() {
 
   return (
     <ScreenLayout
-      scrollViewProps={{
-        refreshControl: <RefreshControl refreshing={refreshing} onRefresh={() => void loadReports("refresh")} />,
-      }}
+      refreshing={refreshing}
+      onRefresh={() => void loadReports("refresh")}
       header={
         <View style={{ paddingBottom: 10 }}>
           <AppText style={[typography.screenTitle, { fontSize: 26, lineHeight: 34 }]} numberOfLines={2}>

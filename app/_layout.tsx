@@ -1,12 +1,14 @@
 // @@iconify-code-gen — injects registered Solar icons (see babel.config.js ICONS)
 import { Stack, usePathname } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../global.css";
 import { usePushNotifications } from "@/lib/push/usePushNotifications";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { useAuthGuard } from "@/lib/auth/useAuthGuard";
 import AppBackground from "@/components/AppBackground";
 import { UnreadCountProvider } from "@/lib/unreadCount";
+import { LowStockCountProvider } from "@/lib/stock/lowStockCountContext";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { useFonts } from "expo-font";
 import {
@@ -60,12 +62,16 @@ export default function RootLayout() {
   }
 
   return (
-    <KeyboardProvider>
-      <AuthProvider>
-        <UnreadCountProvider>
-          <RootLayoutNav />
-        </UnreadCountProvider>
-      </AuthProvider>
-    </KeyboardProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardProvider>
+        <AuthProvider>
+          <UnreadCountProvider>
+            <LowStockCountProvider>
+              <RootLayoutNav />
+            </LowStockCountProvider>
+          </UnreadCountProvider>
+        </AuthProvider>
+      </KeyboardProvider>
+    </GestureHandlerRootView>
   );
 }
