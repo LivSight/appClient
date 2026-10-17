@@ -4,16 +4,16 @@ import { getCurrentUserId } from "@/lib/auth/currentUser";
 import { logger } from "@/lib/logger";
 
 /**
- * Server-side `Packages` entity exposed via /api/packages.
- *
- * NOTE: the backend does NOT currently include `id` in any response (entity
- * has it, but the `PackageResponse` DTO drops it). Until that's fixed we
- * synthesize a stable client-side key via `makeClientId`.
+ * Server-side package row from /api/packages (`PackageResponse`).
+ * `id` may be present; when absent we synthesize a key via `makeClientId`.
  */
 export type Package = {
+  id?: number;
   package_name: string;
   description: string;
   quantity: number;
+  /** Damaged / unsellable units (from `defective_quantity`). */
+  defective_quantity: number;
   user_id: number;
 };
 
@@ -40,15 +40,34 @@ function errorMessageFrom(resStatus: number, data: unknown, rawText: string): st
   return `HTTP ${resStatus}`;
 }
 
-function normalizeListResponse(data: unknown): Package[] {
-  if (Array.isArray(data)) return data as Package[];
+function normalizeListResponse(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
   const inner = (data as { data?: unknown } | null)?.data;
-  if (Array.isArray(inner)) return inner as Package[];
+  if (Array.isArray(inner)) return inner;
   return [];
 }
 
 function coerceQuantity(value: unknown): number {
   return Math.max(0, Math.floor(Number(value) || 0));
+}
+
+function normalizePackageRecord(raw: unknown): Package | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const user_id = Number(r.user_id);
+  if (!Number.isFinite(user_id)) return null;
+
+  const idRaw = Number(r.id);
+  const id = Number.isFinite(idRaw) && idRaw > 0 ? idRaw : undefined;
+
+  return {
+    ...(id != null ? { id } : {}),
+    package_name: String(r.package_name ?? ""),
+    description: String(r.description ?? ""),
+    quantity: coerceQuantity(r.quantity),
+    defective_quantity: coerceQuantity(r.defective_quantity),
+    user_id,
+  };
 }
 
 function normalizeDescription(value: string | undefined): string {
@@ -110,8 +129,13 @@ export async function createPackage(input: {
     throw new Error(errorMessageFrom(res.status, data, rawText));
   }
 
-  const record = data as { data?: Package } | Package;
-  return ((record as { data?: Package }).data ?? record) as Package;
+  const record = data as { data?: unknown } | unknown;
+  const raw = (record as { data?: unknown }).data ?? record;
+  const normalized = normalizePackageRecord(raw);
+  if (!normalized) {
+    throw new Error("Réponse package invalide");
+  }
+  return normalized;
 }
 
 export async function listPackages(input?: { user_id?: number }): Promise<Package[]> {
@@ -132,6 +156,7 @@ export async function listPackages(input?: { user_id?: number }): Promise<Packag
     throw new Error(errorMessageFrom(res.status, data, rawText));
   }
 
-  const all = normalizeListResponse(data);
-  return all.filter((p) => Number(p?.user_id) === userId);
+  return normalizeListResponse(data)
+    .map(normalizePackageRecord)
+    .filter((p): p is Package => p != null && p.user_id === userId);
 }

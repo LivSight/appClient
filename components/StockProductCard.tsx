@@ -8,11 +8,16 @@ export type StockProductCardItem = {
   name: string;
   subtitle: string;
   qty: number;
+  /** Damaged units (always shown, including 0). */
+  defectiveQty?: number;
   low?: boolean;
 };
 
 export default function StockProductCard({ item }: { item: StockProductCardItem }) {
   const low = item.low ?? false;
+  const defectiveQty = Number.isFinite(Number(item.defectiveQty))
+    ? Math.max(0, Math.floor(Number(item.defectiveQty)))
+    : 0;
 
   return (
     <View
@@ -26,13 +31,27 @@ export default function StockProductCard({ item }: { item: StockProductCardItem 
         },
       ]}
     >
-      <AppText
-        style={{ ...typography.subtitle, flex: 1, fontFamily: fonts.bodySemi, color: colors.text, paddingRight: 12 }}
-        numberOfLines={2}
-        ellipsizeMode="tail"
-      >
-        {item.name}
-      </AppText>
+      <View style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+        <AppText
+          style={{ ...typography.subtitle, fontFamily: fonts.bodySemi, color: colors.text }}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
+          {item.name}
+        </AppText>
+        <AppText
+          variant="dense"
+          style={{
+            ...typography.cardSubtitle,
+            marginTop: 4,
+            fontFamily: fonts.bodyMedium,
+            color: defectiveQty > 0 ? "#B45309" : colors.muted,
+          }}
+          numberOfLines={1}
+        >
+          {defectiveQty} défectueux
+        </AppText>
+      </View>
 
       <View
         style={{

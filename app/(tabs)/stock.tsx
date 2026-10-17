@@ -15,7 +15,7 @@ import StockProductCard, { type StockProductCardItem } from "@/components/StockP
 import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 import { useLowStockCount } from "@/lib/stock/lowStockCountContext";
 import { filterStockItems } from "@/lib/stock/filterStockItems";
-import { stockSummaryFromQuantities } from "@/lib/stock/stockSummary";
+import { stockSummaryFromItems } from "@/lib/stock/stockSummary";
 import { formatDbText } from "@/lib/formatDisplayText";
 
 /** Set to true to show the "Ajouter un produit" CTAs again. */
@@ -32,6 +32,9 @@ function toRows(packages: Package[]): Row[] {
       const name = formatDbText(p?.package_name);
       if (!name) return null;
       const qty = Number.isFinite(Number(p?.quantity)) ? Math.max(0, Math.floor(Number(p.quantity))) : 0;
+      const defectiveQty = Number.isFinite(Number(p?.defective_quantity))
+        ? Math.max(0, Math.floor(Number(p.defective_quantity)))
+        : 0;
       const baseId = makeClientId(p);
       const occurrence = (seen.get(baseId) ?? 0) + 1;
       seen.set(baseId, occurrence);
@@ -40,6 +43,7 @@ function toRows(packages: Package[]): Row[] {
         name,
         subtitle: formatDbText(p?.description),
         qty,
+        defectiveQty,
         low: qty <= 2,
       } satisfies Row;
     })
@@ -84,7 +88,13 @@ export default function StockScreen() {
   );
 
   const stockSummary = useMemo(
-    () => stockSummaryFromQuantities(items.map((it) => it.qty)),
+    () =>
+      stockSummaryFromItems(
+        items.map((it) => ({
+          quantity: it.qty,
+          defectiveQuantity: it.defectiveQty,
+        })),
+      ),
     [items],
   );
 
@@ -113,6 +123,12 @@ export default function StockScreen() {
               { label: "Produits", count: stockSummary.productsCount, iconName: "solar:box-bold-duotone", color: colors.primary },
               { label: "Quantité totale", count: stockSummary.qtyTotal, iconName: "solar:box-bold", color: colors.primary },
               { label: "En rupture", count: stockSummary.outOfStockCount, iconName: "solar:danger-circle-bold", color: "#DC2626" },
+              {
+                label: "Défectueux",
+                count: stockSummary.defectiveTotal,
+                iconName: "solar:danger-circle-bold",
+                color: "#B45309",
+              },
             ]}
           />
         </View>

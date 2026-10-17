@@ -167,8 +167,8 @@ describe("aggregateReports", () => {
   describe("sumStockMetrics", () => {
     it("counts products and total quantity", () => {
       const stock = sumStockMetrics([
-        { package_name: "A", quantity: 3, user_id: 1 },
-        { package_name: "B", quantity: 5, user_id: 1 },
+        { package_name: "A", description: "", quantity: 3, defective_quantity: 0, user_id: 1 },
+        { package_name: "B", description: "", quantity: 5, defective_quantity: 0, user_id: 1 },
       ]);
       expect(stock.productsCount).toBe(2);
       expect(stock.qtyTotal).toBe(8);
@@ -197,7 +197,7 @@ describe("aggregateReports", () => {
         range: "Journalier",
         now: NOW,
         transactions,
-        packages: [{ package_name: "Sac", quantity: 2, user_id: 1 }],
+        packages: [{ package_name: "Sac", description: "", quantity: 2, defective_quantity: 0, user_id: 1 }],
       });
 
       expect(result.serviceTypes.livraison).toBeGreaterThanOrEqual(0);
