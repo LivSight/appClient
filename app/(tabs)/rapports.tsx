@@ -1,18 +1,18 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, View, Pressable, ActivityIndicator, ScrollView, useWindowDimensions } from "react-native";
+import { Alert, View, Pressable, ActivityIndicator, ScrollView } from "react-native";
 import { router } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import ScreenLayout from "../../components/ScreenLayout";
 import MetricCard from "../../components/MetricCard";
 import SolarIcon from "../../components/SolarIcon";
-import { colors, fonts, radii, shadows, spacing, typography } from "../../theme/tokens";
+import StatusChipRow from "@/components/StatusChipRow";
+import { colors, fonts, radii, shadows, typography } from "../../theme/tokens";
 import AppText from "../../components/AppText";
 import ReportCustomDateRange from "@/components/ReportCustomDateRange";
 import {
   fetchDeliveryReport,
   fetchExpeditionReport,
   fetchSettlementReport,
-  fetchStockReport,
   sourceCountsFromDeliveries,
   statusBucketsFromSummary,
   toReportDateParam,
@@ -20,7 +20,6 @@ import {
   type ExpeditionReport,
   type ReportKind,
   type SettlementReport,
-  type StockReport,
 } from "@/lib/api/reports";
 import { downloadAndShareReportPdf, isPdfPreviewAvailable, PDF_MODULES_UNAVAILABLE_MESSAGE } from "@/lib/reports/reportPdf";
 import {
@@ -50,55 +49,6 @@ function safeAmount(n: unknown): number {
 
 function formatXafSigned(n: number): string {
   return n < 0 ? `-${formatXaf(-n)}` : formatXaf(n);
-}
-
-type StatusChip = {
-  label: string;
-  count: number;
-  iconName: string;
-  color: string;
-};
-
-function StatusChipRow({ chips }: { chips: StatusChip[] }) {
-  const { width } = useWindowDimensions();
-  const totalGap = spacing.gridColGap * (chips.length - 1);
-  const cardWidth = (width - spacing.screenPaddingX * 2 - totalGap) / chips.length;
-
-  return (
-    <View style={{ flexDirection: "row", gap: spacing.gridColGap }}>
-      {chips.map((chip) => (
-        <View
-          key={chip.label}
-          style={{
-            width: cardWidth,
-            backgroundColor: colors.cardBg,
-            borderRadius: radii.card,
-            paddingVertical: 14,
-            paddingHorizontal: 4,
-            alignItems: "center",
-            ...shadows.card,
-          }}
-        >
-          <SolarIcon name={chip.iconName} size={22} color={chip.color} />
-          <AppText
-            style={{ marginTop: 6, fontSize: 18, lineHeight: 24, fontFamily: fonts.bodyBold, color: colors.text }}
-            numberOfLines={1}
-          >
-            {String(chip.count)}
-          </AppText>
-          <AppText
-            variant="dense"
-            style={{ marginTop: 2, fontSize: 10, lineHeight: 14, fontFamily: fonts.bodySemi, color: "rgba(60,74,60,0.6)", textAlign: "center" }}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.7}
-          >
-            {chip.label}
-          </AppText>
-        </View>
-      ))}
-    </View>
-  );
 }
 
 const REPORT_RANGE_OPTIONS: ReportRange[] = ["Journalier", "Hier", "Hebdo", "Mensuel", "Personnalisé"];
@@ -211,7 +161,6 @@ export default function RapportsScreen() {
   const [previousReport, setPreviousReport] = useState<DeliveryReport | null>(null);
   const [expeditionReport, setExpeditionReport] = useState<ExpeditionReport | null>(null);
   const [previousExpeditionReport, setPreviousExpeditionReport] = useState<ExpeditionReport | null>(null);
-  const [stockReport, setStockReport] = useState<StockReport | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState<ReportKind | null>(null);
 
   const period = useMemo(() => {
@@ -239,10 +188,9 @@ export default function RapportsScreen() {
             return null;
           });
 
-        const [settlementCurrent, settlementPrevious, stock] = await Promise.all([
+        const [settlementCurrent, settlementPrevious] = await Promise.all([
           fetchSettlementSafe(period.start, period.end),
           fetchSettlementSafe(period.prevStart, period.prevEnd),
-          fetchStockReport(period.start, period.end),
         ]);
 
         if (settlementCurrent) {
@@ -273,7 +221,6 @@ export default function RapportsScreen() {
           setExpeditionReport(expeditions);
           setPreviousExpeditionReport(previousExpeditions);
         }
-        setStockReport(stock);
       } catch (e: unknown) {
         logger.warn("rapports", "load failed", e);
         setError("Impossible de charger vos rapports. Vérifiez votre connexion et réessayez.");
@@ -526,19 +473,6 @@ export default function RapportsScreen() {
           </View>
         </>
       ) : null}
-
-      <View style={{ marginTop: 18 }}>
-        <AppText style={{ ...typography.sectionTitle, fontSize: 14, lineHeight: 20, marginBottom: 12 }} numberOfLines={1}>
-          Stock en magasin
-        </AppText>
-        <StatusChipRow
-          chips={[
-            { label: "Produits", count: safeCount(stockReport?.total_products), iconName: "solar:box-bold-duotone", color: colors.primary },
-            { label: "Quantité totale", count: safeCount(stockReport?.total_quantity_in_stock), iconName: "solar:box-bold", color: colors.primary },
-            { label: "En rupture", count: safeCount(stockReport?.out_of_stock_count), iconName: "solar:danger-circle-bold", color: "#DC2626" },
-          ]}
-        />
-      </View>
 
       <View style={{ marginTop: 22, flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
         {settlement && hasActivity ? (

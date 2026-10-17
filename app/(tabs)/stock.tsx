@@ -1,16 +1,18 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useLoadEffect } from "@/lib/hooks/useLoadEffect";
 import { View, Pressable, ActivityIndicator } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import EmptyStateCard from "../../components/EmptyStateCard";
 import ScreenLayout from "../../components/ScreenLayout";
+import StatusChipRow from "@/components/StatusChipRow";
 import { colors, fonts, radii, typography } from "../../theme/tokens";
 import AppText from "../../components/AppText";
 import { listPackages, makeClientId, type Package } from "@/lib/api/packages";
 import StockProductCard, { type StockProductCardItem } from "@/components/StockProductCard";
 import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 import { useLowStockCount } from "@/lib/stock/lowStockCountContext";
+import { stockSummaryFromQuantities } from "@/lib/stock/stockSummary";
 import { formatDbText } from "@/lib/formatDisplayText";
 
 /** Set to true to show the "Ajouter un produit" CTAs again. */
@@ -77,6 +79,11 @@ export default function StockScreen() {
     }, [addedName, load]),
   );
 
+  const stockSummary = useMemo(
+    () => stockSummaryFromQuantities(items.map((it) => it.qty)),
+    [items],
+  );
+
   return (
     <View style={{ flex: 1 }}>
       <ScreenLayout
@@ -85,7 +92,7 @@ export default function StockScreen() {
         header={
           <View style={{ paddingBottom: 10 }}>
             <AppText style={[typography.screenTitle, { fontSize: 26, lineHeight: 34 }]} numberOfLines={2}>
-              Mon Stock
+              Mon Stock en magasin
             </AppText>
             <AppText style={[typography.subtitle, { marginTop: 4 }]}>
               Gérez vos produits
@@ -93,6 +100,16 @@ export default function StockScreen() {
           </View>
         }
       >
+        <View style={{ marginBottom: 18 }}>
+          <StatusChipRow
+            chips={[
+              { label: "Produits", count: stockSummary.productsCount, iconName: "solar:box-bold-duotone", color: colors.primary },
+              { label: "Quantité totale", count: stockSummary.qtyTotal, iconName: "solar:box-bold", color: colors.primary },
+              { label: "En rupture", count: stockSummary.outOfStockCount, iconName: "solar:danger-circle-bold", color: "#DC2626" },
+            ]}
+          />
+        </View>
+
         {SHOW_ADD_PRODUCT_BUTTON && !loading && !error && items.length > 0 ? (
           <Pressable
             onPress={() => router.push("/ajouter-au-stock")}
