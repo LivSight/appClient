@@ -4,6 +4,9 @@ import {
   dateRangeLabel,
   filterTransactionsInRange,
   formatPeriodLabel,
+  reportPdfActionLabel,
+  reportPdfPreviewTitle,
+  parseReportRangeParam,
   getCustomPeriodBounds,
   getPeriodBounds,
   normalizeCustomDateRange,
@@ -63,6 +66,44 @@ describe("aggregateReports", () => {
       expect(dateRangeLabel("Hebdo")).toBe("Cette semaine");
       expect(dateRangeLabel("Mensuel")).toBe("Ce mois");
       expect(dateRangeLabel("Personnalisé")).toBe("Personnalisé");
+    });
+  });
+
+  describe("reportPdfActionLabel", () => {
+    it("names delivery PDF actions from the active period filter", () => {
+      expect(reportPdfActionLabel("Journalier", "deliveries")).toBe("Visualiser mon rapport journalier");
+      expect(reportPdfActionLabel("Hier", "deliveries")).toBe("Visualiser mon rapport d'hier");
+      expect(reportPdfActionLabel("Hebdo", "deliveries")).toBe("Visualiser mon rapport hebdomadaire");
+      expect(reportPdfActionLabel("Mensuel", "deliveries")).toBe("Visualiser mon rapport mensuel");
+      expect(reportPdfActionLabel("Personnalisé", "deliveries")).toBe("Visualiser mon rapport personnalisé");
+    });
+
+    it("names expedition PDF actions from the active period filter", () => {
+      expect(reportPdfActionLabel("Journalier", "expeditions")).toBe(
+        "Visualiser mon rapport d'expédition journalier",
+      );
+      expect(reportPdfActionLabel("Hier", "expeditions")).toBe("Visualiser mon rapport d'expédition d'hier");
+    });
+  });
+
+  describe("reportPdfPreviewTitle", () => {
+    it("matches CTA naming when a period range is provided", () => {
+      expect(reportPdfPreviewTitle("deliveries", "Journalier")).toBe("Visualiser mon rapport journalier");
+      expect(reportPdfPreviewTitle("expeditions", "Mensuel")).toBe(
+        "Visualiser mon rapport d'expédition mensuel",
+      );
+    });
+
+    it("uses fixed titles for stock and settlement", () => {
+      expect(reportPdfPreviewTitle("stock")).toBe("Visualiser mon rapport de stock");
+      expect(reportPdfPreviewTitle("settlement")).toBe("Visualiser mon relevé de solde");
+    });
+  });
+
+  describe("parseReportRangeParam", () => {
+    it("accepts known report ranges only", () => {
+      expect(parseReportRangeParam("Hebdo")).toBe("Hebdo");
+      expect(parseReportRangeParam("nope")).toBeNull();
     });
   });
 

@@ -27,6 +27,7 @@ import {
   formatDeltaPct,
   formatPeriodLabel,
   formatXaf,
+  reportPdfActionLabel,
   resolveReportPeriodBounds,
   type ReportRange,
 } from "@/lib/reports/aggregateReports";
@@ -103,6 +104,7 @@ function RangeToggle({
   );
 }
 
+/** Same primary pill CTA pattern as Stock “Visualiser et télécharger”. */
 function PdfButton({
   label,
   busy,
@@ -115,35 +117,34 @@ function PdfButton({
   return (
     <Pressable
       onPress={busy ? undefined : onPress}
+      disabled={busy}
       style={{
-        flexGrow: 1,
-        flexBasis: "45%",
-        minHeight: 52,
+        minHeight: 48,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
         borderRadius: radii.pill,
-        backgroundColor: colors.white,
-        borderWidth: 1,
-        borderColor: "rgba(48,144,192,0.35)",
-        flexDirection: "row",
+        backgroundColor: colors.primary,
         alignItems: "center",
         justifyContent: "center",
-        gap: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 12,
-        opacity: busy ? 0.6 : 1,
+        opacity: busy ? 0.7 : 1,
       }}
     >
       {busy ? (
-        <ActivityIndicator size="small" color={colors.primary} />
+        <ActivityIndicator size="small" color={colors.white} />
       ) : (
-        <SolarIcon name="solar:download-outline" size={20} color={colors.primary} />
+        <AppText
+          style={{
+            fontSize: 14,
+            lineHeight: 20,
+            fontFamily: fonts.bodySemi,
+            color: colors.white,
+            textAlign: "center",
+          }}
+          numberOfLines={2}
+        >
+          {label}
+        </AppText>
       )}
-      <AppText
-        variant="dense"
-        style={{ fontSize: 13, lineHeight: 18, fontFamily: fonts.bodyBold, color: colors.primary }}
-        numberOfLines={1}
-      >
-        {label}
-      </AppText>
     </Pressable>
   );
 }
@@ -260,7 +261,10 @@ export default function RapportsScreen() {
   async function onDownloadPdf(kind: ReportKind) {
     // Prévisualisation in-app quand le build le permet ; sinon partage direct (ancien flux).
     if (pdfPreviewAvailable) {
-      router.push({ pathname: "/rapport-pdf-preview", params: { kind, start: period.start, end: period.end } });
+      router.push({
+        pathname: "/rapport-pdf-preview",
+        params: { kind, start: period.start, end: period.end, range },
+      });
       return;
     }
     if (downloadingPdf) return;
@@ -473,24 +477,17 @@ export default function RapportsScreen() {
         </>
       ) : null}
 
-      <View style={{ marginTop: 22, flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-        {settlement && hasActivity ? (
-          <PdfButton
-            label="PDF Relevé de solde"
-            busy={downloadingPdf === "settlement"}
-            onPress={() => void onDownloadPdf("settlement")}
-          />
-        ) : null}
+      <View style={{ marginTop: 22, gap: 12 }}>
         {hasDeliveries ? (
           <PdfButton
-            label="PDF Livraisons"
+            label={reportPdfActionLabel(range, "deliveries")}
             busy={downloadingPdf === "deliveries"}
             onPress={() => void onDownloadPdf("deliveries")}
           />
         ) : null}
         {hasExpeditions ? (
           <PdfButton
-            label="PDF Expéditions"
+            label={reportPdfActionLabel(range, "expeditions")}
             busy={downloadingPdf === "expeditions"}
             onPress={() => void onDownloadPdf("expeditions")}
           />

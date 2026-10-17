@@ -17,6 +17,64 @@ export function dateRangeLabel(range: ReportRange): string {
   }
 }
 
+/** Period qualifier for PDF CTA labels (“Visualiser mon rapport …”). */
+export function reportPeriodQualifier(range: ReportRange): string {
+  switch (range) {
+    case "Journalier":
+      return "journalier";
+    case "Hier":
+      return "d'hier";
+    case "Hebdo":
+      return "hebdomadaire";
+    case "Mensuel":
+      return "mensuel";
+    case "Personnalisé":
+      return "personnalisé";
+  }
+}
+
+/** CTA label for report PDF buttons, driven by the active period filter. */
+export function reportPdfActionLabel(
+  range: ReportRange,
+  kind: "deliveries" | "expeditions",
+): string {
+  const period = reportPeriodQualifier(range);
+  if (kind === "expeditions") {
+    return `Visualiser mon rapport d'expédition ${period}`;
+  }
+  return `Visualiser mon rapport ${period}`;
+}
+
+export type ReportPdfTitleKind = "settlement" | "deliveries" | "expeditions" | "stock";
+
+/** Header title on the PDF preview screen — same naming as the CTA when a period is known. */
+export function reportPdfPreviewTitle(
+  kind: ReportPdfTitleKind,
+  range?: ReportRange | null,
+): string {
+  if (kind === "stock") return "Visualiser mon rapport de stock";
+  if (kind === "settlement") return "Visualiser mon relevé de solde";
+  if (range && (kind === "deliveries" || kind === "expeditions")) {
+    return reportPdfActionLabel(range, kind);
+  }
+  if (kind === "expeditions") return "Visualiser mon rapport d'expédition";
+  return "Visualiser mon rapport";
+}
+
+export function parseReportRangeParam(raw: unknown): ReportRange | null {
+  const s = String(raw ?? "").trim();
+  if (
+    s === "Journalier" ||
+    s === "Hier" ||
+    s === "Hebdo" ||
+    s === "Mensuel" ||
+    s === "Personnalisé"
+  ) {
+    return s;
+  }
+  return null;
+}
+
 export type ReportTransaction = {
   created_at?: string;
   type?: string;
