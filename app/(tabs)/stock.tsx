@@ -13,6 +13,9 @@ import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 import { useLowStockCount } from "@/lib/stock/lowStockCountContext";
 import { formatDbText } from "@/lib/formatDisplayText";
 
+/** Set to true to show the "Ajouter un produit" CTAs again. */
+const SHOW_ADD_PRODUCT_BUTTON = false;
+
 type Row = StockProductCardItem;
 
 function toRows(packages: Package[]): Row[] {
@@ -90,7 +93,7 @@ export default function StockScreen() {
           </View>
         }
       >
-        {!loading && !error && items.length > 0 ? (
+        {SHOW_ADD_PRODUCT_BUTTON && !loading && !error && items.length > 0 ? (
           <Pressable
             onPress={() => router.push("/ajouter-au-stock")}
             style={{
@@ -141,9 +144,11 @@ export default function StockScreen() {
             iconName="solar:box-bold-duotone"
             title="Votre stock est vide"
             subtitle="Ajoutez vos produits pour les retrouver lors d’une livraison ou d’une expédition."
-            ctas={[
-              { label: "Ajouter un produit", onPress: () => router.push("/ajouter-au-stock") },
-            ]}
+            ctas={
+              SHOW_ADD_PRODUCT_BUTTON
+                ? [{ label: "Ajouter un produit", onPress: () => router.push("/ajouter-au-stock") }]
+                : []
+            }
           />
         ) : (
           <View style={{ marginTop: 32, gap: 32 }}>
