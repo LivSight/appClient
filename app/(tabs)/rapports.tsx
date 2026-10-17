@@ -14,7 +14,7 @@ import {
   fetchExpeditionReport,
   fetchSettlementReport,
   sourceCountsFromDeliveries,
-  statusBucketsFromSummary,
+  statusChipsFromSummary,
   toReportDateParam,
   type DeliveryReport,
   type ExpeditionReport,
@@ -243,7 +243,10 @@ export default function RapportsScreen() {
     [range, customStart, customEnd],
   );
 
-  const buckets = useMemo(() => statusBucketsFromSummary(report?.status_summary), [report?.status_summary]);
+  const statusChips = useMemo(
+    () => statusChipsFromSummary(report?.status_summary),
+    [report?.status_summary],
+  );
   const sources = useMemo(() => sourceCountsFromDeliveries(report?.deliveries), [report?.deliveries]);
 
   // Sections conditionnées aux données (comme le PDF) : livraisons et expéditions
@@ -348,12 +351,8 @@ export default function RapportsScreen() {
               Statuts
             </AppText>
             <StatusChipRow
-              chips={[
-                { label: "En cours", count: buckets.enCours, iconName: "solar:clock-circle-outline", color: colors.primary },
-                { label: "Livré", count: buckets.delivered, iconName: "solar:check-circle-bold", color: "#16A34A" },
-                { label: "Injoignable", count: buckets.injoignable, iconName: "solar:phone-outline", color: "#B45309" },
-                { label: "Annulé", count: buckets.annule, iconName: "solar:close-circle-bold", color: "#DC2626" },
-              ]}
+              chips={statusChips}
+              scrollHintKey={statusChips.length > 4 ? `${period.start}_${period.end}` : undefined}
             />
           </View>
         </>
@@ -496,11 +495,6 @@ export default function RapportsScreen() {
             onPress={() => void onDownloadPdf("expeditions")}
           />
         ) : null}
-        <PdfButton
-          label="PDF Stock"
-          busy={downloadingPdf === "stock"}
-          onPress={() => void onDownloadPdf("stock")}
-        />
       </View>
     </>
   );
