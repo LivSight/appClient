@@ -20,11 +20,9 @@ type Props = {
 export default function StockCartList({ cart, inventory, onChange, compact = false }: Props) {
   if (!cart.length) return null;
 
-  const visibleCart = compact ? cart.slice(0, 2) : cart;
-
   return (
     <View style={{ marginTop: compact ? 0 : 8, gap: 6 }}>
-      {visibleCart.map((cartItem) => {
+      {cart.map((cartItem) => {
         const inv = inventory.find((it) => it.id === cartItem.id);
         const maxQty = Math.max(0, inv?.stockAvailable ?? cartItem.qty);
         const atMax = maxQty > 0 && cartItem.qty >= maxQty;
@@ -123,11 +121,6 @@ export default function StockCartList({ cart, inventory, onChange, compact = fal
           </View>
         );
       })}
-      {compact && cart.length > 2 ? (
-        <AppText variant="dense" style={{ fontSize: 12, lineHeight: 16, fontFamily: fonts.bodyMedium, color: "rgba(60,74,60,0.65)" }} numberOfLines={1}>
-          +{cart.length - 2} autre{cart.length - 2 > 1 ? "s" : ""} produit{cart.length - 2 > 1 ? "s" : ""}
-        </AppText>
-      ) : null}
     </View>
   );
 }
