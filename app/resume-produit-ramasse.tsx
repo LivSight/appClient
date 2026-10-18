@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Alert, View, Pressable } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { track } from "@/lib/analytics/events";
+import { errorLabel } from "@/lib/analytics/mappers";
 import ScreenLayout from "../components/ScreenLayout";
 import AppText from "../components/AppText";
 import FormButton from "../components/FormButton";
@@ -125,6 +127,17 @@ export default function ResumeProduitRamasseScreen() {
   const collectCash = params.pickupCollectCash === "yes" ? "yes" : "no";
   const amount = parseIntSafe(typeof params.pickupAmount === "string" ? params.pickupAmount : "");
   const forExpedition = isExpeditionService(typeof params.service === "string" ? params.service : undefined);
+  const submittedRef = useRef(false);
+  const flowRef = useRef<"livraison" | "expedition">("livraison");
+  useEffect(() => {
+    flowRef.current = forExpedition ? "expedition" : "livraison";
+  }, [forExpedition]);
+  useEffect(
+    () => () => {
+      if (!submittedRef.current) track("demande_abandonnee", { flow: flowRef.current, etape: "resume" });
+    },
+    [],
+  );
   const expAgence = typeof params.expAgence === "string" ? params.expAgence : "";
   const expPickupAddress = typeof params.expPickupAddress === "string" ? params.expPickupAddress : "";
   const expeditionClient = useMemo(
@@ -284,6 +297,12 @@ export default function ResumeProduitRamasseScreen() {
           scheduledDeliveryDate,
         }),
       );
+      submittedRef.current = true;
+      track("demande_soumise", {
+        flow: flowRef.current,
+        source: "ramasse",
+        nb_produits: qty > 0 ? qty : 1,
+      });
       const createdId = created?.id ?? created?.data?.id ?? created?.transactionReference;
       router.push({
         pathname: "/confirmee",
@@ -294,6 +313,7 @@ export default function ResumeProduitRamasseScreen() {
         },
       });
     } catch (e: unknown) {
+      track("demande_echouee", { flow: flowRef.current, source: "ramasse", erreur: errorLabel(e) });
       await hapticError();
       Alert.alert(
         "Erreur",

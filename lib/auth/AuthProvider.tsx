@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
+import { track } from "@/lib/analytics/events";
+import { loginFailureReason } from "@/lib/analytics/mappers";
 import { resetCurrentUserIdCache } from "@/lib/auth/currentUser";
 import { onSessionInvalidated } from "@/lib/auth/sessionEvents";
 import { authSession as defaultAuthSession, type AuthSession, type LoginCredentials, type SessionUser } from "@/lib/auth/session";
@@ -59,7 +61,13 @@ export function createAuthProvider(deps: AuthProviderDeps) {
 
     const login = useCallback(async (credentials: LoginCredentials) => {
       resetCurrentUserIdCache();
-      await deps.session.login(credentials);
+      try {
+        await deps.session.login(credentials);
+      } catch (e) {
+        track("connexion_echouee", { raison: loginFailureReason(e) });
+        throw e;
+      }
+      track("connexion_reussie");
       const nextUser = await deps.session.getSessionUser();
       setUser(nextUser);
     }, []);

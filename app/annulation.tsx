@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { track } from "@/lib/analytics/events";
 import { useLoadEffect } from "@/lib/hooks/useLoadEffect";
 import { Alert, Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -176,6 +177,7 @@ export default function AnnulationScreen() {
                     reason: reasonLabel,
                     details: details.trim() || undefined,
                   });
+                  track("annulation_demandee", { raison: reasonLabel });
                   router.replace({
                     pathname: "/annulation-confirmee",
                     params: { id: deliveryId },

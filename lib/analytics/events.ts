@@ -17,7 +17,7 @@ export type AnalyticsEvents = {
   demande_abandonnee: { flow: DemandeFlow; etape: "formulaire" | "resume" };
   connexion_reussie: undefined;
   connexion_echouee: { raison: "identifiants" | "reseau" | "serveur" | "inconnue" };
-  annulation_demandee: { flow: DemandeFlow };
+  annulation_demandee: { raison: string };
   ajout_stock_soumis: { nb_produits: number };
   ajout_stock_echoue: { erreur: string };
 

@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Alert, View, Pressable } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { track } from "@/lib/analytics/events";
+import { errorLabel } from "@/lib/analytics/mappers";
 import ScreenLayout from "../components/ScreenLayout";
 import AppText from "../components/AppText";
 import FormButton from "../components/FormButton";
@@ -109,6 +111,8 @@ function formatCmPhone(input: string): string {
 
 export default function ResumeProduitEnStockScreen() {
   const params = useLocalSearchParams<Params>();
+  const submittedRef = useRef(false);
+  const flowRef = useRef<"livraison" | "expedition">("livraison");
   const quartier = typeof params.quartier === "string" ? params.quartier : "";
   const deliveryAddress = typeof params.deliveryAddress === "string" ? params.deliveryAddress : "";
   const deliveryQuartier = typeof params.deliveryQuartier === "string" ? params.deliveryQuartier : "";
@@ -122,6 +126,15 @@ export default function ResumeProduitEnStockScreen() {
   const collectCash = params.collectCash === "yes" ? "yes" : "no";
   const amountDueText = typeof params.amountDueText === "string" ? params.amountDueText : "";
   const forExpedition = isExpeditionService(typeof params.service === "string" ? params.service : undefined);
+  useEffect(() => {
+    flowRef.current = forExpedition ? "expedition" : "livraison";
+  }, [forExpedition]);
+  useEffect(
+    () => () => {
+      if (!submittedRef.current) track("demande_abandonnee", { flow: flowRef.current, etape: "resume" });
+    },
+    [],
+  );
   const expeditionClient = useMemo(
     () => parseExpeditionClient(typeof params.expeditionClient === "string" ? params.expeditionClient : undefined),
     [params.expeditionClient]
@@ -272,6 +285,12 @@ export default function ResumeProduitEnStockScreen() {
           scheduledDeliveryDate,
         }),
       );
+      submittedRef.current = true;
+      track("demande_soumise", {
+        flow: flowRef.current,
+        source: "stock",
+        nb_produits: items.reduce((sum, it) => sum + it.qty, 0),
+      });
       const createdId = created?.id ?? created?.data?.id ?? created?.transactionReference;
       router.push({
         pathname: "/confirmee",
@@ -282,6 +301,7 @@ export default function ResumeProduitEnStockScreen() {
         },
       });
     } catch (e: unknown) {
+      track("demande_echouee", { flow: flowRef.current, source: "stock", erreur: errorLabel(e) });
       await hapticError();
       Alert.alert(
         "Erreur",
