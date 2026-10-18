@@ -2,6 +2,7 @@
 
 | Fichier | Contenu |
 |---------|---------|
+| [ANALYTICS_POSTHOG.md](ANALYTICS_POSTHOG.md) | Analytics PostHog : architecture, séparation dev/prod, catalogue des 17 events |
 | [api-transactions.md](api-transactions.md) | Contrat API transactions (endpoints, payloads, statuts) |
 | [auth-tdd-phases.md](auth-tdd-phases.md) | Phases TDD de l'authentification Keycloak |
 | [BUILD_CI.md](BUILD_CI.md) | Pipeline CI/CD, profils EAS, secrets, workflows courants |
