@@ -4,6 +4,8 @@ import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../global.css";
 import { usePushNotifications } from "@/lib/push/usePushNotifications";
+import { AnalyticsProvider } from "@/lib/analytics/AnalyticsProvider";
+import { useAnalyticsIdentity } from "@/lib/analytics/useAnalyticsIdentity";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { useAuthGuard } from "@/lib/auth/useAuthGuard";
 import AppBackground from "@/components/AppBackground";
@@ -27,6 +29,7 @@ function RootLayoutNav() {
   const { showSplash } = useAuthGuard(pathname);
 
   usePushNotifications(pathname, showSplash);
+  useAnalyticsIdentity();
 
   if (showSplash) {
     return (
@@ -64,13 +67,15 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
-        <AuthProvider>
-          <UnreadCountProvider>
-            <LowStockCountProvider>
-              <RootLayoutNav />
-            </LowStockCountProvider>
-          </UnreadCountProvider>
-        </AuthProvider>
+        <AnalyticsProvider>
+          <AuthProvider>
+            <UnreadCountProvider>
+              <LowStockCountProvider>
+                <RootLayoutNav />
+              </LowStockCountProvider>
+            </UnreadCountProvider>
+          </AuthProvider>
+        </AnalyticsProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>
   );
