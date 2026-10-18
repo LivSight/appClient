@@ -1,8 +1,16 @@
-import { useCallback, useMemo, useState } from "react";
-import { Alert, View, Pressable, ActivityIndicator, ScrollView } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  View,
+  Pressable,
+  ActivityIndicator,
+  ScrollView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 import { router } from "expo-router";
 import { track } from "@/lib/analytics/events";
-import { errorLabel } from "@/lib/analytics/mappers";
+import { errorLabel, reachedScrollMilestones } from "@/lib/analytics/mappers";
 import { useFocusEffect } from "expo-router/react-navigation";
 import ScreenLayout from "../../components/ScreenLayout";
 import MetricCard from "../../components/MetricCard";
@@ -235,11 +243,28 @@ export default function RapportsScreen() {
     [period],
   );
 
+  const scrollMilestonesRef = useRef<Set<number>>(new Set());
+
   useFocusEffect(
     useCallback(() => {
+      scrollMilestonesRef.current = new Set();
       void loadReports("initial");
     }, [loadReports]),
   );
+
+  function onReportScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+    for (const milestone of reachedScrollMilestones(
+      contentOffset.y,
+      layoutMeasurement.height,
+      contentSize.height,
+    )) {
+      if (!scrollMilestonesRef.current.has(milestone)) {
+        scrollMilestonesRef.current.add(milestone);
+        track("rapport_scroll", { profondeur: milestone });
+      }
+    }
+  }
 
   const periodLabel = useMemo(
     () => formatPeriodLabel(range, new Date(), { start: customStart, end: customEnd }),
@@ -504,6 +529,7 @@ export default function RapportsScreen() {
     <ScreenLayout
       refreshing={refreshing}
       onRefresh={() => void loadReports("refresh")}
+      scrollViewProps={{ onScroll: onReportScroll, scrollEventThrottle: 250 }}
       header={
         <View style={{ paddingBottom: 10 }}>
           <AppText style={[typography.screenTitle, { fontSize: 26, lineHeight: 34 }]} numberOfLines={2}>

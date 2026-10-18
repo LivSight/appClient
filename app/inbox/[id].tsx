@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { track } from "@/lib/analytics/events";
 import { useFocusEffect } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "@/components/AppText";
@@ -327,6 +328,10 @@ export default function InboxChatScreen() {
 
   const topPadding = Math.max(spacing.screenPaddingX, insets.top + spacing.screenPaddingX);
   const bottomPadding = Math.max(24, insets.bottom + 8);
+
+  useEffect(() => {
+    track("conversation_ouverte");
+  }, []);
 
   const refreshThread = useCallback(async () => {
     if (!id) {
