@@ -24,7 +24,7 @@ import {
 import { paginateStockList } from "@/lib/stock/paginateStockList";
 import { colors, fonts, radii, shadows, typography } from "@/theme/tokens";
 
-/** Outer shadow + border; inner clip so overflow doesn't kill the shadow on iOS. */
+/** Outer shadow only; inner clip so overflow doesn't kill the shadow on iOS. */
 function TariffsCard({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
     <View
@@ -33,8 +33,8 @@ function TariffsCard({ children, style }: { children: ReactNode; style?: StylePr
           backgroundColor: colors.cardBg,
           borderRadius: radii.card,
           ...shadows.card,
-          borderWidth: 1,
-          borderColor: colors.cardStroke,
+          // Override Android `shadows.card` stroke — page uses shadow, not border.
+          borderWidth: 0,
         },
         style,
       ]}
