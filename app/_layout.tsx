@@ -1,7 +1,7 @@
 // @@iconify-code-gen — injects registered Solar icons (see babel.config.js ICONS)
 import { Stack, usePathname } from "expo-router";
-import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import LoadingState from "@/components/LoadingState";
 import "../global.css";
 import { usePushNotifications } from "@/lib/push/usePushNotifications";
 import { AnalyticsProvider } from "@/lib/analytics/AnalyticsProvider";
@@ -32,11 +32,7 @@ function RootLayoutNav() {
   useAnalyticsIdentity();
 
   if (showSplash) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
-      </View>
-    );
+    return <LoadingState fullScreen />;
   }
 
   return (
@@ -57,11 +53,7 @@ export default function RootLayout() {
   });
 
   if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
-      </View>
-    );
+    return <LoadingState fullScreen />;
   }
 
   return (

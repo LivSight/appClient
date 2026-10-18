@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Pressable, View, type ScrollView, type StyleProp, type ViewStyle } from "react-native";
+import LoadingState from "@/components/LoadingState";
+import { Pressable, View, type ScrollView, type StyleProp, type ViewStyle } from "react-native";
 import { useFocusEffect } from "expo-router/react-navigation";
 import AppText from "@/components/AppText";
 import AppTextInput from "@/components/AppTextInput";
@@ -307,12 +308,7 @@ export default function TarifsScreen() {
   const hasActiveSearch = query.trim().length > 0;
 
   const body = loading ? (
-    <View style={{ paddingVertical: 48, alignItems: "center" }}>
-      <ActivityIndicator size="large" color={colors.primary} />
-      <AppText style={{ ...typography.subtitle, marginTop: 12 }} numberOfLines={2}>
-        Chargement des tarifs…
-      </AppText>
-    </View>
+    <LoadingState label="Chargement des tarifs…" />
   ) : error ? (
     <View style={{ marginTop: 18, padding: 16, backgroundColor: colors.cardBg, borderRadius: radii.card }}>
       <AppText style={typography.bodyRegular} numberOfLines={4}>

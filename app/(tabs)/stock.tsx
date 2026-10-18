@@ -4,6 +4,7 @@ import { Alert, View, Pressable, ActivityIndicator, type ScrollView } from "reac
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import EmptyStateCard from "../../components/EmptyStateCard";
+import LoadingState from "@/components/LoadingState";
 import ScreenLayout from "../../components/ScreenLayout";
 import StatusChipRow from "@/components/StatusChipRow";
 import SolarIcon from "@/components/SolarIcon";
@@ -107,7 +108,7 @@ export default function StockScreen() {
     }
   }, [openingReport]);
 
-  const load = useCallback(async (mode: "initial" | "refresh" = "initial") => {
+  const load = useCallback(async (mode: "initial" | "refresh" | "silent" = "initial") => {
     if (mode === "initial") setLoading(true);
     setError(null);
     try {
@@ -124,9 +125,14 @@ export default function StockScreen() {
 
   const { refreshing, onRefresh } = usePullToRefresh(() => load("refresh"));
 
+  // Full-screen loader only on the very first load; later tab focuses refresh
+  // silently so the existing list stays on screen instead of flashing a spinner.
+  const hasLoadedOnceRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      void load();
+      void load(hasLoadedOnceRef.current ? "silent" : "initial").finally(() => {
+        hasLoadedOnceRef.current = true;
+      });
       return () => {};
     }, [load]),
   );
@@ -288,16 +294,14 @@ export default function StockScreen() {
         ) : null}
 
         {loading && !refreshing ? (
-          <View style={{ paddingVertical: 28, alignItems: "center" }}>
-            <ActivityIndicator />
-          </View>
+          <LoadingState label="Chargement du stock…" />
         ) : error ? (
           <View style={{ paddingVertical: 16 }}>
             <AppText style={{ color: "#D32F2F", fontFamily: fonts.bodySemi, marginBottom: 12 }}>
               {error}
             </AppText>
             <Pressable
-              onPress={load}
+              onPress={() => void load("initial")}
               style={{
                 minHeight: 44,
                 paddingVertical: 10,

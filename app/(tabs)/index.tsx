@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import LoadingState from "@/components/LoadingState";
 import { View, Pressable } from "react-native";
 import { router } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
@@ -19,6 +20,9 @@ import type { User } from "@/lib/api/users";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 import { formatDbText } from "@/lib/formatDisplayText";
+import { getUnreadInAppNotificationCount } from "@/lib/notifications/inAppNotifications";
+import { shouldRefreshInAppNotifications } from "@/lib/push/notificationRouting";
+import { usePushRefresh } from "@/lib/push/usePushRefresh";
 const CATEGORIES: CategoryItem[] = [
   { title: "Livraison", iconName: "solar:delivery-bold-duotone", onPress: () => router.push("/ma-demande-livraison") },
   { title: "Expédition", iconName: "solar:rocket-bold-duotone", onPress: () => router.push({ pathname: "/ma-demande-expedition", params: { quartier: "" } }) },
@@ -31,6 +35,7 @@ export default function AccueilScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const loadTransactions = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     try {
@@ -55,11 +60,23 @@ export default function AccueilScreen() {
     }
   }, []);
 
+  const loadUnreadNotifications = useCallback(async () => {
+    try {
+      setUnreadNotifications(await getUnreadInAppNotificationCount());
+    } catch {
+      setUnreadNotifications(0);
+    }
+  }, []);
+
   const refreshHome = useCallback(async () => {
-    await Promise.all([loadTransactions("refresh"), loadUser()]);
-  }, [loadTransactions, loadUser]);
+    await Promise.all([loadTransactions("refresh"), loadUser(), loadUnreadNotifications()]);
+  }, [loadTransactions, loadUser, loadUnreadNotifications]);
 
   const { refreshing, onRefresh } = usePullToRefresh(refreshHome);
+
+  usePushRefresh(shouldRefreshInAppNotifications, () => {
+    void loadUnreadNotifications();
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -71,6 +88,12 @@ export default function AccueilScreen() {
     useCallback(() => {
       void loadUser();
     }, [loadUser]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadUnreadNotifications();
+    }, [loadUnreadNotifications]),
   );
 
   const displayName = useMemo(() => {
@@ -112,6 +135,8 @@ export default function AccueilScreen() {
         <View style={{ paddingBottom: 20 }}>
           <HomeTopBar
             onProfilePress={() => router.push("/profile")}
+            onNotificationsPress={() => router.push("/notifications")}
+            unreadNotificationCount={unreadNotifications}
             initials={initials}
           />
           <AppText style={[typography.screenTitle, { fontSize: 26, lineHeight: 34 }]} numberOfLines={2}>
@@ -138,9 +163,7 @@ export default function AccueilScreen() {
 
           {loading && !refreshing ? (
             <View style={{ borderRadius: radii.card, backgroundColor: colors.white, padding: 20 }}>
-              <AppText style={{ ...typography.cardTitle, fontSize: 16, lineHeight: 24 }} numberOfLines={2}>
-                Chargement…
-              </AppText>
+              <LoadingState />
             </View>
           ) : error ? (
             <View style={{ borderRadius: radii.card, backgroundColor: colors.white, padding: 20 }}>

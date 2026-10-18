@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import LoadingState from "@/components/LoadingState";
+import { Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { track } from "@/lib/analytics/events";
 import { useFocusEffect } from "expo-router/react-navigation";
@@ -80,12 +81,7 @@ export default function TarifsZoneDetailScreen() {
   const sectorsLabel = `${neighborhoodNames.length} SECTEUR${neighborhoodNames.length === 1 ? "" : "S"}`;
 
   const body = loading ? (
-    <View style={{ paddingVertical: 48, alignItems: "center" }}>
-      <ActivityIndicator size="large" color={colors.primary} />
-      <AppText style={{ ...typography.subtitle, marginTop: 12 }} numberOfLines={2}>
-        Chargement de la zone…
-      </AppText>
-    </View>
+    <LoadingState label="Chargement de la zone…" />
   ) : error ? (
     <View style={{ marginTop: 18, padding: 16, backgroundColor: colors.cardBg, borderRadius: radii.card }}>
       <AppText style={typography.bodyRegular} numberOfLines={4}>

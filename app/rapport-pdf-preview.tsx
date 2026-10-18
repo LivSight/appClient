@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import LoadingState from "@/components/LoadingState";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { track } from "@/lib/analytics/events";
@@ -134,7 +135,7 @@ export default function RapportPdfPreviewScreen() {
     return () => {
       mounted = false;
     };
-  }, [kind, start, end, attempt]);
+  }, [kind, start, end, range, attempt]);
 
   const retry = useCallback(() => {
     setError(null);
@@ -183,12 +184,7 @@ export default function RapportPdfPreviewScreen() {
       </View>
     </View>
   ) : !html ? (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-      <ActivityIndicator size="large" color={colors.primary} />
-      <AppText style={{ ...typography.subtitle, marginTop: 12 }} numberOfLines={2}>
-        Chargement du rapport…
-      </AppText>
-    </View>
+    <LoadingState fullScreen label="Chargement du rapport…" />
   ) : (
     <View
       style={{

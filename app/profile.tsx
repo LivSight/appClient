@@ -1,5 +1,6 @@
-import { Alert, View, Pressable, ActivityIndicator, Linking } from "react-native";
+import { Alert, View, Pressable, Linking } from "react-native";
 import { useCallback, useState } from "react";
+import LoadingState from "@/components/LoadingState";
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
@@ -191,12 +192,7 @@ export default function ProfileScreen() {
       }
     >
       {loading && !refreshing ? (
-        <View style={{ alignItems: "center", paddingVertical: 48 }}>
-          <ActivityIndicator color={colors.primary} />
-          <AppText style={{ ...typography.subtitle, marginTop: 12 }} numberOfLines={1}>
-            Chargement…
-          </AppText>
-        </View>
+        <LoadingState label="Chargement…" />
       ) : error ? (
         <View style={[card.base, { padding: 20, marginTop: 8 }]}>
           <AppText style={{ ...typography.cardTitle, fontSize: 16, lineHeight: 24 }} numberOfLines={2}>

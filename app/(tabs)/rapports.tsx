@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import LoadingState from "@/components/LoadingState";
 import {
   Alert,
   View,
@@ -8,7 +9,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { track } from "@/lib/analytics/events";
 import { errorLabel, reachedScrollMilestones } from "@/lib/analytics/mappers";
 import { useFocusEffect } from "expo-router/react-navigation";
@@ -37,6 +38,7 @@ import {
   formatDeltaPct,
   formatPeriodLabel,
   formatXaf,
+  parseReportRangeParam,
   reportPdfActionLabel,
   resolveReportPeriodBounds,
   type ReportRange,
@@ -160,10 +162,20 @@ function PdfButton({
 }
 
 export default function RapportsScreen() {
-  const [range, setRange] = useState<ReportRange>("Journalier");
+  const { range: rangeParam } = useLocalSearchParams<{ range?: string }>();
+  const [range, setRange] = useState<ReportRange>(() => parseReportRangeParam(rangeParam) ?? "Journalier");
   const [customStart, setCustomStart] = useState(() => startOfMonth(new Date()));
   const [customEnd, setCustomEnd] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
+
+  // Deep link / notification: apply Journalier | Mensuel | … when `range` query is present.
+  // State adjusted during render (React "adjusting state when a prop changes" pattern).
+  const parsedRangeParam = parseReportRangeParam(Array.isArray(rangeParam) ? rangeParam[0] : rangeParam);
+  const [appliedRangeParam, setAppliedRangeParam] = useState(parsedRangeParam);
+  if (parsedRangeParam && parsedRangeParam !== appliedRangeParam) {
+    setAppliedRangeParam(parsedRangeParam);
+    setRange(parsedRangeParam);
+  }
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settlement, setSettlement] = useState<SettlementReport | null>(null);
@@ -313,12 +325,7 @@ export default function RapportsScreen() {
   }
 
   const body = loading ? (
-    <View style={{ paddingVertical: 48, alignItems: "center" }}>
-      <ActivityIndicator size="large" color={colors.primary} />
-      <AppText style={{ ...typography.subtitle, marginTop: 12 }} numberOfLines={2}>
-        Chargement des rapports…
-      </AppText>
-    </View>
+    <LoadingState label="Chargement des rapports…" />
   ) : error ? (
     <View style={{ marginTop: 18, padding: 16, backgroundColor: colors.cardBg, borderRadius: radii.card }}>
       <AppText style={typography.bodyRegular} numberOfLines={4}>

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import LoadingState from "@/components/LoadingState";
 import { track } from "@/lib/analytics/events";
 import { View, Pressable } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -144,9 +145,7 @@ export default function LivraisonScreen() {
 
       {loading && !refreshing ? (
         <View style={{ marginTop: 6, borderRadius: radii.card, backgroundColor: colors.white, padding: 20 }}>
-          <AppText style={{ ...typography.cardTitle, fontSize: 16, lineHeight: 24 }} numberOfLines={2}>
-            Chargement…
-          </AppText>
+          <LoadingState />
         </View>
       ) : error ? (
         <View style={{ marginTop: 6, borderRadius: radii.card, backgroundColor: colors.white, padding: 20 }}>
