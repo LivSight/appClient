@@ -22,7 +22,7 @@ export type AnalyticsEvents = {
   ajout_stock_echoue: { erreur: string };
 
   // P2 — features
-  quartier_recherche: { terme: string; nb_resultats: number; trouve: boolean };
+  quartier_recherche: { terme: string; trouve: boolean };
   rapport_visualise: { type_rapport: string; periode: string };
   document_telecharge: { type_rapport: string; periode: string; action: "telechargement" | "partage" };
   document_echec: { type_rapport: string; erreur: string };
@@ -48,7 +48,7 @@ export function track<E extends AnalyticsEventName>(...args: TrackArgs<E>): void
   const client = getAnalyticsClient();
   if (!client) return;
   try {
-    client.capture(event, props);
+    client.capture(event, props as Parameters<typeof client.capture>[1]);
   } catch (e) {
     logger.warn("analytics", `track(${event}) failed`, e);
   }

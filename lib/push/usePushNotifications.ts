@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
+import { track } from "@/lib/analytics/events";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { logger } from "@/lib/logger";
 import { registerPushNotificationsAsync } from "@/lib/push/registerPushNotifications";
@@ -22,12 +23,19 @@ async function navigateFromNotificationResponse(
   const route = resolveClientPushRoute(data);
   if (!route) return;
 
+  const notifType = typeof data?.type === "string" ? data.type : "inconnu";
+
   if (route.screen === "inbox") {
+    track("notification_ouverte", { type: notifType, ecran_cible: "inbox" });
     router.push({ pathname: "/inbox/[id]", params: { id: route.transactionId } });
     return;
   }
 
   const detailPath = await resolveTransactionDetailPath(route.transactionId);
+  track("notification_ouverte", {
+    type: notifType,
+    ecran_cible: detailPath.startsWith("/expedition-detail") ? "expedition-detail" : "livraison-detail",
+  });
   router.push(detailPath as `/livraison-detail/${string}` | `/expedition-detail/${string}`);
 }
 

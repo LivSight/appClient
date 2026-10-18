@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { Alert, View, Pressable, ActivityIndicator, ScrollView } from "react-native";
 import { router } from "expo-router";
+import { track } from "@/lib/analytics/events";
+import { errorLabel } from "@/lib/analytics/mappers";
 import { useFocusEffect } from "expo-router/react-navigation";
 import ScreenLayout from "../../components/ScreenLayout";
 import MetricCard from "../../components/MetricCard";
@@ -271,7 +273,9 @@ export default function RapportsScreen() {
     setDownloadingPdf(kind);
     try {
       await downloadAndShareReportPdf(kind, period.start, period.end);
+      track("document_telecharge", { type_rapport: kind, periode: range, action: "telechargement" });
     } catch (e: unknown) {
+      track("document_echec", { type_rapport: kind, erreur: errorLabel(e) });
       logger.warn("rapports", "pdf download failed", e);
       const message =
         e instanceof Error && e.message === PDF_MODULES_UNAVAILABLE_MESSAGE

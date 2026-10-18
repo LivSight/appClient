@@ -3,6 +3,7 @@ import { Alert, View, Pressable } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { track } from "@/lib/analytics/events";
 import { errorLabel } from "@/lib/analytics/mappers";
+import { useQuartierLookupTracking } from "@/lib/analytics/useQuartierLookupTracking";
 import ScreenLayout from "../components/ScreenLayout";
 import AppText from "../components/AppText";
 import FormButton from "../components/FormButton";
@@ -181,6 +182,11 @@ export default function ResumeProduitEnStockScreen() {
   const { estimate: deliveryFeeEstimate, loading: deliveryFeeLoading } = useDeliveryFeeEstimate(
     forExpedition ? "" : destinationQuartier,
     express,
+  );
+  useQuartierLookupTracking(
+    forExpedition ? "" : destinationQuartier,
+    deliveryFeeLoading,
+    deliveryFeeEstimate.available,
   );
 
   const expeditionDepartureStreet = useMemo(

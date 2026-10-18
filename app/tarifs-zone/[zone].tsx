@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { track } from "@/lib/analytics/events";
 import { useFocusEffect } from "expo-router/react-navigation";
 import AppText from "@/components/AppText";
 import EmptyStateCard from "@/components/EmptyStateCard";
@@ -27,6 +28,10 @@ export default function TarifsZoneDetailScreen() {
     const parsed = parseInt(String(zone ?? ""), 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }, [zone]);
+
+  useEffect(() => {
+    if (zoneIdNum != null) track("tarif_zone_consulte", { zone: String(zoneIdNum) });
+  }, [zoneIdNum]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

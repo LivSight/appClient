@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { track } from "@/lib/analytics/events";
+import { errorLabel } from "@/lib/analytics/mappers";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "../components/AppText";
 import CenteredScreenHeader from "../components/CenteredScreenHeader";
@@ -115,10 +117,12 @@ export default function RapportPdfPreviewScreen() {
         const cached = await downloadReportPdfToCache(kind, start, end);
         const base64 = await readReportPdfBase64(cached.fileUri);
         if (!mounted) return;
+        track("rapport_visualise", { type_rapport: kind, periode: range ?? "inconnue" });
         setPdf(cached);
         setHtml(buildPdfPreviewHtml(base64));
       } catch (e: unknown) {
         if (!mounted) return;
+        track("document_echec", { type_rapport: kind, erreur: errorLabel(e) });
         logger.warn("reports", "pdf preview load failed", e);
         setError(
           e instanceof Error && e.message.trim().length
@@ -144,7 +148,9 @@ export default function RapportPdfPreviewScreen() {
     setSharing(true);
     try {
       await shareCachedReportPdf(pdf);
+      track("document_telecharge", { type_rapport: kind, periode: range ?? "inconnue", action: "partage" });
     } catch (e: unknown) {
+      track("document_echec", { type_rapport: kind, erreur: errorLabel(e) });
       logger.warn("reports", "pdf share failed", e);
       Alert.alert("Partage impossible", String(e instanceof Error ? e.message : e));
     } finally {
