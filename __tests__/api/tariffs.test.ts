@@ -1,7 +1,3 @@
-jest.mock("@/lib/api/client", () => ({
-  apiFetch: jest.fn(),
-}));
-
 import { apiFetch } from "@/lib/api/client";
 import {
   getDeliveryFeeSettings,
@@ -14,6 +10,9 @@ import {
   buildOtherTariffs,
   filterNeighborhoodNames,
   formatSupplementFcfaLabel,
+  buildNeighborhoodTariffRows,
+  buildTariffSupplementRows,
+  filterNeighborhoodTariffRows,
   isTariffsCatalogEmpty,
   mapZoneToTariffCard,
   pickDefaultCityId,
@@ -21,6 +20,10 @@ import {
   uniqueNeighborhoodNames,
   zoneDisplayLabel,
 } from "@/lib/api/tariffUi";
+
+jest.mock("@/lib/api/client", () => ({
+  apiFetch: jest.fn(),
+}));
 
 const API_BASE = "http://localhost:4040";
 
@@ -152,6 +155,44 @@ describe("tariffUi", () => {
     expect(formatSupplementFcfaLabel(500)).toBe("+500 FCFA");
     expect(formatSupplementFcfaLabel(null)).toBe("—");
   });
+
+  it("buildNeighborhoodTariffRows lists quartiers with zone and amount", () => {
+    const rows = buildNeighborhoodTariffRows({
+      zones: [
+        { id: 1, city_id: 1, delivery_fee: 1500, sort_order: 1, distance_label: "0-5", eta_label: null },
+        { id: 2, city_id: 1, delivery_fee: 2000, sort_order: 2, distance_label: null, eta_label: null },
+      ],
+      neighborhoods: [
+        { id: 10, zone_id: 2, name: "Mvan", delivery_fee: null, requires_entry_fee: false },
+        { id: 11, zone_id: 1, name: "Bastos", delivery_fee: 500, requires_entry_fee: true },
+        { id: 12, zone_id: 99, name: "Hors ville", delivery_fee: null, requires_entry_fee: false },
+      ],
+    });
+    expect(rows.map((r) => r.neighborhoodName)).toEqual(["Bastos", "Mvan"]);
+    expect(rows[0]).toMatchObject({ zoneLabel: "ZONE 1", amountLabel: "1 500 FCFA", zoneId: "1" });
+    expect(rows[1]).toMatchObject({ zoneLabel: "ZONE 2", amountLabel: "2 000 FCFA" });
+  });
+
+  it("filterNeighborhoodTariffRows matches quartier or zone", () => {
+    const rows = buildNeighborhoodTariffRows({
+      zones: [{ id: 1, city_id: 1, delivery_fee: 1500, sort_order: 1, distance_label: null, eta_label: null }],
+      neighborhoods: [
+        { id: 1, zone_id: 1, name: "Bastos", delivery_fee: null, requires_entry_fee: false },
+        { id: 2, zone_id: 1, name: "Mvan", delivery_fee: null, requires_entry_fee: false },
+      ],
+    });
+    expect(filterNeighborhoodTariffRows(rows, "bas").map((r) => r.neighborhoodName)).toEqual(["Bastos"]);
+    expect(filterNeighborhoodTariffRows(rows, "zone 1")).toHaveLength(2);
+    expect(filterNeighborhoodTariffRows(rows, "")).toHaveLength(2);
+  });
+
+  it("buildTariffSupplementRows lists express and pickup fees", () => {
+    expect(buildTariffSupplementRows({ expressFee: 1000, pickupFee: 500 }).map((r) => r.amountLabel)).toEqual([
+      "+1 000 FCFA",
+      "+500 FCFA",
+    ]);
+  });
+
 
   it("buildOtherTariffs uses entry neighborhoods for quartier fee", () => {
     const items = buildOtherTariffs(

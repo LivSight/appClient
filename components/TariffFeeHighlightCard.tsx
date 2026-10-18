@@ -35,25 +35,27 @@ export default function TariffFeeHighlightCard({ variant, feeXaf, subtitle }: Pr
 
   if (isExpress) {
     return (
-      <View style={[card.base, { backgroundColor: colors.primary, padding: 16 }]}>
-        <View style={{ alignItems: "center", justifyContent: "center" }}>
-          <SolarIcon name={meta.icon} size={24} color={meta.iconColor} />
-          <AppText
-            variant="dense"
-            style={{ marginTop: 8, fontSize: 12, lineHeight: 18, fontFamily: fonts.bodyBold, color: colors.white, opacity: 0.9, letterSpacing: 1.4 }}
-            numberOfLines={1}
-          >
-            {meta.title}
-          </AppText>
-          <AppText style={{ marginTop: 4, fontSize: 20, lineHeight: 28, fontFamily: fonts.bodyBold, color: colors.white }} numberOfLines={1}>
+      <View style={[card.base, { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <SolarIcon name={meta.icon} size={22} color={meta.iconColor} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <AppText
+              variant="dense"
+              style={{ fontSize: 12, lineHeight: 16, fontFamily: fonts.bodyBold, color: colors.white, opacity: 0.9, letterSpacing: 1.2 }}
+              numberOfLines={1}
+            >
+              {meta.title}
+            </AppText>
+            <AppText
+              variant="dense"
+              style={{ marginTop: 2, fontSize: 10, lineHeight: 14, fontFamily: fonts.bodyBold, color: colors.white, opacity: 0.8 }}
+              numberOfLines={1}
+            >
+              {subtitle ?? meta.defaultSubtitle}
+            </AppText>
+          </View>
+          <AppText style={{ fontSize: 18, lineHeight: 24, fontFamily: fonts.bodyBold, color: colors.white, flexShrink: 0 }} numberOfLines={1}>
             {priceLabel}
-          </AppText>
-          <AppText
-            variant="dense"
-            style={{ marginTop: 2, fontSize: 10, lineHeight: 14, fontFamily: fonts.bodyBold, color: colors.white, opacity: 0.8 }}
-            numberOfLines={1}
-          >
-            {subtitle ?? meta.defaultSubtitle}
           </AppText>
         </View>
       </View>
@@ -61,16 +63,16 @@ export default function TariffFeeHighlightCard({ variant, feeXaf, subtitle }: Pr
   }
 
   return (
-    <View style={[card.base, { padding: 16, backgroundColor: "rgba(180,83,9,0.08)" }]}>
+    <View style={[card.base, { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "rgba(180,83,9,0.08)" }]}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <SolarIcon name={meta.icon} size={28} color={meta.iconColor} />
+        <View style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <SolarIcon name={meta.icon} size={24} color={meta.iconColor} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <AppText variant="dense" style={{ fontSize: 12, lineHeight: 18, fontFamily: fonts.bodyBold, color: "#B45309", letterSpacing: 1.2 }} numberOfLines={2}>
+          <AppText variant="dense" style={{ fontSize: 12, lineHeight: 16, fontFamily: fonts.bodyBold, color: "#B45309", letterSpacing: 1.2 }} numberOfLines={1}>
             {meta.title}
           </AppText>
-          <AppText variant="dense" style={{ marginTop: 2, fontSize: 10, lineHeight: 14, fontFamily: fonts.bodyBold, color: "rgba(60,74,60,0.65)" }} numberOfLines={2}>
+          <AppText variant="dense" style={{ marginTop: 2, fontSize: 10, lineHeight: 14, fontFamily: fonts.bodyBold, color: "rgba(60,74,60,0.65)" }} numberOfLines={1}>
             {subtitle ?? meta.defaultSubtitle}
           </AppText>
         </View>
