@@ -1,10 +1,26 @@
 # LivSight — Analytics PostHog (App client)
 
-Intégration de PostHog (EU cloud) dans l'**app client** : autocapture de navigation, identité liée à la session Keycloak, et catalogue typé de 17 events métier/features.
+Intégration de PostHog (EU cloud) dans l'**app client** : autocapture de navigation, identité liée à la session Keycloak, catalogue typé de 17 events métier/features, et super property `app_source: "app_client"` sur chaque event (projets PostHog partagés entre apps).
 
-**Dernière mise à jour :** 2026-10-18
+**Dernière mise à jour :** 2026-10-23
 **Région :** EU — `https://eu.i.posthog.com`
 **Voir aussi :** [PUSH_NOTIFICATIONS_CLIENT.md](./PUSH_NOTIFICATIONS_CLIENT.md) (event `notification_ouverte`)
+
+---
+
+## État de l'intégration
+
+| Maillon | Statut |
+|---------|--------|
+| SDK `posthog-react-native` + provider + autocapture écrans | ✅ |
+| `identify(keycloakId)` au login / `reset()` au logout | ✅ |
+| Catalogue typé des 17 events (P1 métier, P2 features, P3 profondeur) | ✅ |
+| Super property `app_source: "app_client"` (events manuels + autocapture) | ✅ |
+| Dev local → *LivSight Development* (clé dans `.env`) | ✅ vérifié sur device |
+| Build production → *LivSight Production* (variable expo.dev, env `production`) | ✅ variable en place |
+| Builds preview | ⏸️ volontairement sans analytics (pas de variable créée) |
+
+**Vérification au premier build store** : installer l'app, naviguer/se connecter, puis sur *LivSight Production → Activity* confirmer que les events arrivent avec `app_source: app_client` dans leurs propriétés.
 
 ---
 
@@ -45,9 +61,9 @@ Chaque app se distingue par sa super property `app_source` (`app_client` pour ce
 
 | Build | Source de la clé `EXPO_PUBLIC_POSTHOG_API_KEY` | Projet PostHog |
 |-------|------------------------------------------------|----------------|
-| Dev (Xcode/Metro) | `.env` local (jamais commité) | LivSight Development |
-| Preview/staging (EAS) | expo.dev → Environment variables → env **preview** | LivSight Development |
-| Production (EAS) | expo.dev → Environment variables → env **production** | LivSight Production |
+| Dev (Xcode/Metro) | `.env` local (jamais commité — le build EAS ne le voit jamais) | LivSight Development |
+| Preview/staging (EAS) | aucune variable → analytics **désactivés** (choix assumé ; créer la variable env `preview` sur expo.dev avec la clé Development le jour où on en veut) | — |
+| Production (EAS) | expo.dev → Environment variables → env **production**, visibility *Plain text* (✅ en place) | LivSight Production |
 
 ⚠️ **Le repo est public** : les clés ne vont jamais dans `eas.json` (seul `EXPO_PUBLIC_POSTHOG_HOST`, non sensible, y est). Elles vivent dans le dashboard expo.dev (visibility "Plain text" — ce sont des clés d'ingestion publiques, pas des secrets ; une clé dans `eas.json` écraserait celle du dashboard, ne jamais y laisser une valeur vide). Les clés personnelles PostHog (`phx_...`) ne doivent exister nulle part dans le projet. Sans clé définie, les analytics sont proprement désactivés.
 
@@ -114,4 +130,12 @@ EXPO_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
 
 ## Tests
 
-`__tests__/lib/analytics/` — 24 tests : config (clé/host), client (memoization, désactivé sans clé), `track` (no-op, props, jamais de throw), mappers (raisons login, normalisation endpoint, paliers scroll), hook identité (identify/reset/none).
+`__tests__/lib/analytics/` — 30 tests : config (clé/host), client (memoization, désactivé sans clé, `register` de `app_source` appelé une seule fois), `track` (no-op, props, jamais de throw), mappers (raisons login, normalisation endpoint, paliers scroll), hook identité (identify/reset/none).
+
+## Historique de l'intégration (résumé)
+
+1. **SDK + env** — `posthog-react-native` installé, provider dans `app/_layout.tsx`, clé lue depuis `EXPO_PUBLIC_POSTHOG_API_KEY` (host EU par défaut), plugin `expo-localization` ajouté à `app.json`.
+2. **Identité** — `useAnalyticsIdentity` synchronise identify/reset avec la session (`keycloakId` uniquement, pas de PII).
+3. **Events** — catalogue typé de 17 events implémentés en 3 phases (métier → features → profondeur), chacun à un point de capture unique, helpers purs testés.
+4. **Projets partagés** — architecture à 2 projets PostHog pour tout l'écosystème (Development/Production) ; `app_source: "app_client"` enregistré en super property à la création du client.
+5. **Repo public** — clés retirées de `eas.json` avant tout push ; la clé Production vit sur expo.dev (env `production`), la clé Development dans `.env` local.

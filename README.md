@@ -22,6 +22,8 @@ npx expo start --clear
 | Appareil physique | `http://<IP-LAN>:4040` |
 | Staging | `https://staging-gateway.livsight.com` |
 
+**Analytics (optionnel en dev)** : renseigner `EXPO_PUBLIC_POSTHOG_API_KEY` dans `.env` (clé du projet *LivSight Development*) pour activer PostHog ; vide = analytics désactivés, l'app fonctionne normalement. En production la clé vient du dashboard expo.dev — jamais du repo (public). Détails : [`docs/ANALYTICS_POSTHOG.md`](docs/ANALYTICS_POSTHOG.md).
+
 ---
 
 ## Commandes
@@ -89,6 +91,7 @@ app/                   # Écrans (Expo Router file-based)
 └── ...
 
 lib/                   # Logique métier
+├── analytics/         # PostHog : client, catalogue typé d'events, identité
 ├── api/               # Clients API (transactions, packages, users...)
 ├── auth/              # Session Keycloak, tokens, guards
 ├── push/              # Push notifications
@@ -109,3 +112,4 @@ docs/                  # Documentation technique (index : docs/README.md)
 | [CLAUDE.md](CLAUDE.md) | Architecture détaillée (auth, API, navigation, design system) |
 | [docs/README.md](docs/README.md) | Index de toute la documentation technique |
 | [docs/BUILD_CI.md](docs/BUILD_CI.md) | Pipeline CI/CD, profils EAS, secrets |
+| [docs/ANALYTICS_POSTHOG.md](docs/ANALYTICS_POSTHOG.md) | Analytics PostHog : architecture, events, environnements dev/prod |
