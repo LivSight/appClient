@@ -7,6 +7,7 @@ import {
   parseTicketMessageNotificationRoute,
   resolveClientPushRoute,
   shouldRefreshInAppNotifications,
+  shouldSuppressClientPushPresentation,
 } from "@/lib/push/notificationRouting";
 
 describe("parseDeliveryIdFromNotificationData", () => {
@@ -65,6 +66,19 @@ describe("isProductPushType / product routes", () => {
   it("shouldRefreshInAppNotifications is true for product pushes", () => {
     expect(shouldRefreshInAppNotifications({ type: "stock_updated" })).toBe(true);
     expect(shouldRefreshInAppNotifications({ type: "ticket_message" })).toBe(false);
+  });
+});
+
+describe("shouldSuppressClientPushPresentation", () => {
+  it("silences driver reassignment pushes for now", () => {
+    expect(shouldSuppressClientPushPresentation("driver_reassigned")).toBe(true);
+    expect(shouldSuppressClientPushPresentation({ type: "driver_reassigned" })).toBe(true);
+  });
+
+  it("still shows first driver assignment and other types", () => {
+    expect(shouldSuppressClientPushPresentation("driver_assigned")).toBe(false);
+    expect(shouldSuppressClientPushPresentation("transaction_status_changed")).toBe(false);
+    expect(shouldSuppressClientPushPresentation(undefined)).toBe(false);
   });
 });
 

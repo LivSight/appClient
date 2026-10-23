@@ -223,6 +223,7 @@ export function getDataFromNotification(
 }
 
 export function shouldRefreshLivraisonList(payload: PushReceivedPayload): boolean {
+  if (shouldSuppressClientPushPresentation(String(payload.type))) return false;
   return isTransactionPushType(String(payload.type));
 }
 
@@ -232,6 +233,22 @@ export function shouldRefreshConversations(payload: PushReceivedPayload): boolea
 
 export function shouldRefreshInAppNotifications(payload: PushReceivedPayload): boolean {
   return isProductPushType(String(payload.type));
+}
+
+/**
+ * Temporary client-side mute: hide banner/sound and skip tap routing.
+ * Backend may still send the push; we do not surface `driver_reassigned` for now.
+ */
+export function shouldSuppressClientPushPresentation(
+  input: string | Record<string, unknown> | null | undefined,
+): boolean {
+  const type =
+    typeof input === "string"
+      ? input.trim()
+      : input && typeof input === "object"
+        ? String(input.type ?? "").trim()
+        : "";
+  return type === "driver_reassigned";
 }
 
 export function matchesOpenTransaction(

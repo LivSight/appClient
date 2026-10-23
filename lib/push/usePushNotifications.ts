@@ -12,6 +12,7 @@ import {
   getDataFromNotification,
   parsePushReceivedPayload,
   resolveClientPushRoute,
+  shouldSuppressClientPushPresentation,
 } from "@/lib/push/notificationRouting";
 import { resolveTransactionDetailPath } from "@/lib/push/resolveTransactionDetailPath";
 
@@ -20,6 +21,8 @@ async function navigateFromNotificationResponse(
   response: Notifications.NotificationResponse,
 ) {
   const data = getDataFromNotification(response.notification);
+  if (shouldSuppressClientPushPresentation(data)) return;
+
   const route = resolveClientPushRoute(data);
   if (!route) return;
 
@@ -104,7 +107,9 @@ export function usePushNotifications(pathname: string, checking: boolean) {
 
   useEffect(() => {
     const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
-      const payload = parsePushReceivedPayload(getDataFromNotification(notification));
+      const data = getDataFromNotification(notification);
+      if (shouldSuppressClientPushPresentation(data)) return;
+      const payload = parsePushReceivedPayload(data);
       if (payload) emitPushReceived(payload);
     });
 

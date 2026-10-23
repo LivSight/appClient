@@ -9,17 +9,35 @@ import {
   getRegisteredPushTokenAsync,
   rememberRegisteredPushToken,
 } from "@/lib/push/pushTokenStore";
+import { shouldSuppressClientPushPresentation } from "@/lib/push/notificationRouting";
 
 const ANDROID_CHANNEL_ID = "default";
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification.request.content.data;
+    const suppress = shouldSuppressClientPushPresentation(
+      data && typeof data === "object" && !Array.isArray(data)
+        ? (data as Record<string, unknown>)
+        : undefined,
+    );
+    if (suppress) {
+      return {
+        shouldShowAlert: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+      };
+    }
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    };
+  },
 });
 
 async function ensureAndroidChannel() {
