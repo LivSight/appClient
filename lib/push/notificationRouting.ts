@@ -9,11 +9,20 @@ export type ClientPushType =
   | "delivery_fee_finalized"
   | "delivery_rescheduled"
   | "delivery_today_reminder"
-  | "ticket_message";
+  | "ticket_message"
+  | "stock_updated"
+  | "report_daily_ready"
+  | "report_monthly_ready"
+  | "promo"
+  | "general";
 
 export type ClientPushRoute =
   | { screen: "inbox"; transactionId: string; ticketId?: string }
-  | { screen: "detail"; transactionId: string };
+  | { screen: "detail"; transactionId: string }
+  | { screen: "stock" }
+  | { screen: "rapports"; range: "Journalier" | "Mensuel" }
+  | { screen: "tarifs" }
+  | { screen: "notifications" };
 
 export type PushReceivedPayload = {
   type: ClientPushType | string;
@@ -37,6 +46,14 @@ const TRANSACTION_PUSH_TYPES = new Set<ClientPushType>([
   "delivery_today_reminder",
 ]);
 
+const PRODUCT_PUSH_TYPES = new Set<ClientPushType>([
+  "stock_updated",
+  "report_daily_ready",
+  "report_monthly_ready",
+  "promo",
+  "general",
+]);
+
 function parseStringId(value: unknown): string | null {
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   if (typeof value === "string" && value.trim()) return value.trim();
@@ -56,11 +73,38 @@ export function parseClientPushType(data: Record<string, unknown> | null | undef
     type === "delivery_fee_finalized" ||
     type === "delivery_rescheduled" ||
     type === "delivery_today_reminder" ||
-    type === "ticket_message"
+    type === "ticket_message" ||
+    type === "stock_updated" ||
+    type === "report_daily_ready" ||
+    type === "report_monthly_ready" ||
+    type === "promo" ||
+    type === "general"
   ) {
     return type;
   }
   return null;
+}
+
+export function isProductPushType(type: string | null | undefined): boolean {
+  if (!type) return false;
+  return PRODUCT_PUSH_TYPES.has(type as ClientPushType);
+}
+
+export function resolveProductPushRoute(type: ClientPushType): ClientPushRoute | null {
+  switch (type) {
+    case "stock_updated":
+      return { screen: "stock" };
+    case "report_daily_ready":
+      return { screen: "rapports", range: "Journalier" };
+    case "report_monthly_ready":
+      return { screen: "rapports", range: "Mensuel" };
+    case "promo":
+      return { screen: "tarifs" };
+    case "general":
+      return { screen: "notifications" };
+    default:
+      return null;
+  }
 }
 
 export function isTransactionPushType(type: string | null | undefined): boolean {
@@ -123,6 +167,10 @@ export function resolveClientPushRoute(
     };
   }
 
+  if (type && isProductPushType(type)) {
+    return resolveProductPushRoute(type);
+  }
+
   if (type && isTransactionPushType(type)) {
     const transactionId = parseDeliveryIdFromNotificationData(data);
     if (!transactionId) return null;
@@ -180,6 +228,10 @@ export function shouldRefreshLivraisonList(payload: PushReceivedPayload): boolea
 
 export function shouldRefreshConversations(payload: PushReceivedPayload): boolean {
   return payload.type === "ticket_message";
+}
+
+export function shouldRefreshInAppNotifications(payload: PushReceivedPayload): boolean {
+  return isProductPushType(String(payload.type));
 }
 
 export function matchesOpenTransaction(

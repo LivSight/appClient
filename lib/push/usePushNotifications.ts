@@ -31,6 +31,30 @@ async function navigateFromNotificationResponse(
     return;
   }
 
+  if (route.screen === "stock") {
+    track("notification_ouverte", { type: notifType, ecran_cible: "stock" });
+    router.navigate("/stock");
+    return;
+  }
+
+  if (route.screen === "rapports") {
+    track("notification_ouverte", { type: notifType, ecran_cible: "rapports" });
+    router.navigate({ pathname: "/rapports", params: { range: route.range } });
+    return;
+  }
+
+  if (route.screen === "tarifs") {
+    track("notification_ouverte", { type: notifType, ecran_cible: "tarifs" });
+    router.navigate("/tarifs");
+    return;
+  }
+
+  if (route.screen === "notifications") {
+    track("notification_ouverte", { type: notifType, ecran_cible: "notifications" });
+    router.push("/notifications");
+    return;
+  }
+
   const detailPath = await resolveTransactionDetailPath(route.transactionId);
   track("notification_ouverte", {
     type: notifType,
