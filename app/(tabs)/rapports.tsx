@@ -197,7 +197,7 @@ export default function RapportsScreen() {
   }, [range, customStart, customEnd]);
 
   const loadReports = useCallback(
-    async (mode: "initial" | "refresh" = "initial") => {
+    async (mode: "initial" | "refresh" | "silent" = "initial") => {
       try {
         if (mode === "initial") setLoading(true);
         if (mode === "refresh") setRefreshing(true);
@@ -257,11 +257,18 @@ export default function RapportsScreen() {
 
   const scrollMilestonesRef = useRef<Set<number>>(new Set());
 
+  // Full loader only on the first load of a given period; refocusing the tab with
+  // the same period refreshes silently so the content doesn't flash a spinner.
+  const loadedPeriodRef = useRef<string | null>(null);
   useFocusEffect(
     useCallback(() => {
       scrollMilestonesRef.current = new Set();
-      void loadReports("initial");
-    }, [loadReports]),
+      const periodKey = `${period.start}|${period.end}`;
+      const mode = loadedPeriodRef.current === periodKey ? "silent" : "initial";
+      void loadReports(mode).finally(() => {
+        loadedPeriodRef.current = periodKey;
+      });
+    }, [loadReports, period.start, period.end]),
   );
 
   function onReportScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -534,7 +541,7 @@ export default function RapportsScreen() {
 
   return (
     <ScreenLayout
-      refreshing={refreshing}
+      refreshing={refreshing && !loading}
       onRefresh={() => void loadReports("refresh")}
       scrollViewProps={{ onScroll: onReportScroll, scrollEventThrottle: 250 }}
       header={
