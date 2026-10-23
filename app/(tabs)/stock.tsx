@@ -11,7 +11,7 @@ import SolarIcon from "@/components/SolarIcon";
 import AppTextInput from "@/components/AppTextInput";
 import { colors, fonts, radii, typography } from "../../theme/tokens";
 import AppText from "../../components/AppText";
-import { listPackages, makeClientId, type Package } from "@/lib/api/packages";
+import { listPackages, type Package } from "@/lib/api/packages";
 import { toReportDateParam } from "@/lib/api/reports";
 import StockProductCard, { type StockProductCardItem } from "@/components/StockProductCard";
 import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
@@ -24,8 +24,8 @@ import {
   PDF_MODULES_UNAVAILABLE_MESSAGE,
 } from "@/lib/reports/reportPdf";
 import { sortStockItemsByName } from "@/lib/stock/sortStockItems";
+import { stockProductRowsFromPackages } from "@/lib/stock/stockProductRows";
 import { stockSummaryFromItems } from "@/lib/stock/stockSummary";
-import { formatDbText } from "@/lib/formatDisplayText";
 import { logger } from "@/lib/logger";
 
 /** Set to true to show the "Ajouter un produit" CTAs again. */
@@ -34,30 +34,7 @@ const SHOW_ADD_PRODUCT_BUTTON = false;
 type Row = StockProductCardItem;
 
 function toRows(packages: Package[]): Row[] {
-  // The backend can return several packages with the same name for a user, and
-  // makeClientId is name-based — disambiguate so React keys stay unique.
-  const seen = new Map<string, number>();
-  return packages
-    .map((p) => {
-      const name = formatDbText(p?.package_name);
-      if (!name) return null;
-      const qty = Number.isFinite(Number(p?.quantity)) ? Math.max(0, Math.floor(Number(p.quantity))) : 0;
-      const defectiveQty = Number.isFinite(Number(p?.defective_quantity))
-        ? Math.max(0, Math.floor(Number(p.defective_quantity)))
-        : 0;
-      const baseId = makeClientId(p);
-      const occurrence = (seen.get(baseId) ?? 0) + 1;
-      seen.set(baseId, occurrence);
-      return {
-        id: occurrence > 1 ? `${baseId}#${occurrence}` : baseId,
-        name,
-        subtitle: formatDbText(p?.description),
-        qty,
-        defectiveQty,
-        low: qty <= 2,
-      } satisfies Row;
-    })
-    .filter(Boolean) as Row[];
+  return stockProductRowsFromPackages(packages);
 }
 
 export default function StockScreen() {
