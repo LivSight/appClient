@@ -2,9 +2,11 @@ import { getAnalyticsClient, resetAnalyticsClientForTesting } from "@/lib/analyt
 import { getPostHogConfig } from "@/lib/analytics/posthogConfig";
 
 const mockPosthogCtor = jest.fn();
+const mockRegister = jest.fn();
 
 jest.mock("posthog-react-native", () => ({
   PostHog: class {
+    register = mockRegister;
     constructor(...args: unknown[]) {
       mockPosthogCtor(...args);
     }
@@ -40,6 +42,19 @@ describe("getAnalyticsClient", () => {
     expect(first).toBe(second);
     expect(mockPosthogCtor).toHaveBeenCalledTimes(1);
     expect(mockPosthogCtor).toHaveBeenCalledWith("phc_test", { host: "https://eu.i.posthog.com" });
+  });
+
+  it("registers app_source as a super property on every event", () => {
+    (getPostHogConfig as jest.Mock).mockReturnValue({
+      apiKey: "phc_test",
+      host: "https://eu.i.posthog.com",
+    });
+
+    getAnalyticsClient();
+    getAnalyticsClient();
+
+    expect(mockRegister).toHaveBeenCalledTimes(1);
+    expect(mockRegister).toHaveBeenCalledWith({ app_source: "app_client" });
   });
 
   it("memoizes the disabled state too", () => {

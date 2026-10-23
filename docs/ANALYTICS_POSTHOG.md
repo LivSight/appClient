@@ -28,15 +28,28 @@ lib/analytics/
 3. **Zéro PII.** Pas de noms, téléphones, adresses, montants dans les propriétés. `erreur_api` masque les IDs numériques/UUID des endpoints (`normalizeEndpoint`). L'identité = `keycloakId` (UUID technique).
 4. **Fire-and-forget.** `track()` n'échoue jamais (try/catch + log) — l'analytics ne doit jamais casser une soumission.
 5. **Un event = un seul point de capture** pour éviter les doublons dans les stats.
+6. **`app_source: "app_client"` sur chaque event.** Les projets PostHog sont **partagés par toutes les apps LivSight** — cette super property (enregistrée via `client.register()` dans `client.ts`) identifie l'app émettrice sur les events manuels ET l'autocapture. Tout insight/dashboard doit filtrer sur `app_source`.
+
+## Architecture des projets PostHog
+
+**Deux projets pour tout l'écosystème LivSight — pas un projet par app :**
+
+| Projet PostHog | Contenu |
+|----------------|---------|
+| **LivSight Development** | toutes les apps en dev/staging |
+| **LivSight Production** | toutes les apps en production |
+
+Chaque app se distingue par sa super property `app_source` (`app_client` pour cette app).
 
 ## Séparation dev / prod
 
-| Build | Source de la clé | Projet PostHog |
-|-------|------------------|----------------|
-| Dev (Xcode/Metro) | `.env` local | projet dev |
-| Production (EAS) | bloc `env` du profil `production` dans `eas.json` | projet prod (**à créer — clé pas encore ajoutée dans eas.json**) |
+| Build | Source de la clé `EXPO_PUBLIC_POSTHOG_API_KEY` | Projet PostHog |
+|-------|------------------------------------------------|----------------|
+| Dev (Xcode/Metro) | `.env` local (jamais commité) | LivSight Development |
+| Preview/staging (EAS) | expo.dev → Environment variables → env **preview** | LivSight Development |
+| Production (EAS) | expo.dev → Environment variables → env **production** | LivSight Production |
 
-Même mécanisme que `EXPO_PUBLIC_GATEWAY_URL`. Les données dev et prod ne se mélangent jamais.
+⚠️ **Le repo est public** : les clés ne vont jamais dans `eas.json` (seul `EXPO_PUBLIC_POSTHOG_HOST`, non sensible, y est). Elles vivent dans le dashboard expo.dev (visibility "Plain text" — ce sont des clés d'ingestion publiques, pas des secrets ; une clé dans `eas.json` écraserait celle du dashboard, ne jamais y laisser une valeur vide). Les clés personnelles PostHog (`phx_...`) ne doivent exister nulle part dans le projet. Sans clé définie, les analytics sont proprement désactivés.
 
 ```bash
 # .env (dev) — jamais commité
