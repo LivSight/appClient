@@ -1,7 +1,7 @@
 {
   "name": "appclient",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "start": "expo start",
     "start:go": "expo start --go",
@@ -27,6 +27,7 @@
     "@expo-google-fonts/palanquin": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-community/datetimepicker": "9.1.0",
+    "@sentry/react-native": "~7.11.0",
     "@solar-icons/react-native": "^1.1.0",
     "expo": "^56.0.0",
     "expo-application": "~56.0.3",

@@ -1,4 +1,6 @@
 // @@iconify-code-gen — injects registered Solar icons (see babel.config.js ICONS)
+import * as Sentry from "@sentry/react-native";
+import { isRunningInExpoGo } from "expo";
 import { Stack, usePathname } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import LoadingState from "@/components/LoadingState";
@@ -24,6 +26,17 @@ import {
   Palanquin_700Bold,
 } from "@expo-google-fonts/palanquin";
 
+Sentry.init({
+  dsn:
+    process.env.EXPO_PUBLIC_SENTRY_DSN ??
+    "https://7a9185c6060be1dfca455d8dd7969c54@o4512335711436800.ingest.de.sentry.io/4512335818719312",
+  sendDefaultPii: true,
+  tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+  // Slow/frozen frames need the native SDK, absent in Expo Go
+  enableNativeFramesTracking: !isRunningInExpoGo(),
+  environment: __DEV__ ? "development" : "production",
+});
+
 function RootLayoutNav() {
   const pathname = usePathname();
   const { showSplash } = useAuthGuard(pathname);
@@ -42,7 +55,7 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded] = useFonts({
     Montserrat_400Regular,
     Montserrat_500Medium,
@@ -72,3 +85,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(RootLayout);
