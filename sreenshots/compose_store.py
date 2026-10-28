@@ -20,7 +20,8 @@ from psd_tools import PSDImage
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 RAW = os.path.join(ROOT, "store")
-OUT_IOS = os.path.join(ROOT, "store-final", "ios")
+OUT_IOS = os.path.join(ROOT, "store-final", "ios")          # 6.1"/6.3" medium display
+OUT_IOS_LARGE = os.path.join(ROOT, "store-final", "ios-large")  # 6.9" large display
 OUT_PLAY = os.path.join(ROOT, "store-final", "play")
 
 PSD_IPHONE = os.path.expanduser("~/Desktop/Free_iPhone_16_Mockup_5.psd")
@@ -245,6 +246,7 @@ def feature_graphic():
 
 def main():
     os.makedirs(OUT_IOS, exist_ok=True)
+    os.makedirs(OUT_IOS_LARGE, exist_ok=True)
     os.makedirs(OUT_PLAY, exist_ok=True)
 
     for i, (name, caption) in enumerate(SHOTS, start=1):
@@ -252,13 +254,17 @@ def main():
         raw = os.path.join(RAW, name)
         slug = os.path.splitext(name)[0].split("-", 1)[1]
 
-        compose(raw, caption, style, (1290, 2796), 86, 1040, MOCK_IPHONE).save(
+        # App Store Connect accepted sizes: 1206x2622 (6.1"/6.3") and 1320x2868 (6.9")
+        compose(raw, caption, style, (1206, 2622), 80, 972, MOCK_IPHONE).save(
             os.path.join(OUT_IOS, f"{i:02d}-{slug}.png")
+        )
+        compose(raw, caption, style, (1320, 2868), 88, 1064, MOCK_IPHONE).save(
+            os.path.join(OUT_IOS_LARGE, f"{i:02d}-{slug}.png")
         )
         compose(raw, caption, style, (1080, 1920), 58, 700, MOCK_SAMSUNG, crop_top=IOS_STATUS_BAR_CROP).save(
             os.path.join(OUT_PLAY, f"{i:02d}-{slug}.png")
         )
-        print(f"{i:02d}-{slug}: ios + play")
+        print(f"{i:02d}-{slug}: ios + ios-large + play")
 
     feature_graphic().save(os.path.join(OUT_PLAY, "feature-graphic.png"))
     print("feature-graphic: play")
