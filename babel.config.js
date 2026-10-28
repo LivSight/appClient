@@ -46,6 +46,7 @@ const ICONS = [
   "solar:t-shirt-bold-duotone",
   "solar:trash-bin-trash-outline",
   "solar:user-outline",
+  "solar:user-rounded-bold",
   "solar:user-id-bold-duotone",
   "solar:letter-outline",
   "solar:calendar-outline",

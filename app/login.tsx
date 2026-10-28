@@ -59,13 +59,32 @@ export default function LoginScreen() {
     <ScreenLayout scrollViewProps={{ keyboardShouldPersistTaps: "handled" }}>
       <View style={{ flexGrow: 1, justifyContent: "center", alignSelf: "stretch", gap: 24 }}>
         <View style={{ alignItems: "center", alignSelf: "stretch" }}>
-          <Image
-            testID="login-logo"
-            source={require("../assets/images/logo.png")}
-            style={{ width: 72, height: 72, marginBottom: 16 }}
-            contentFit="contain"
-            accessibilityLabel="Livsight"
-          />
+          <View
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: 28,
+              backgroundColor: colors.white,
+              borderWidth: 1,
+              borderColor: colors.cardStroke,
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 20,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.08,
+              shadowRadius: 20,
+              elevation: 4,
+            }}
+          >
+            <Image
+              testID="login-logo"
+              source={require("../assets/images/logo.png")}
+              style={{ width: 60, height: 60 }}
+              contentFit="contain"
+              accessibilityLabel="Livsight"
+            />
+          </View>
           {isStaging ? (
             <View
               testID="login-staging-badge"
@@ -179,6 +198,7 @@ export default function LoginScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 hitSlop={8}
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
               >
                 <SolarIcon
                   name={showPassword ? "solar:eye-closed-outline" : "solar:eye-outline"}
@@ -197,6 +217,23 @@ export default function LoginScreen() {
           onPress={handleSubmit}
           style={{ alignSelf: "stretch" }}
         />
+
+        <AppText
+          variant="dense"
+          style={{
+            textAlign: "center",
+            fontSize: 11,
+            lineHeight: 16,
+            fontFamily: fonts.bodyBold,
+            letterSpacing: 2.2,
+            textTransform: "uppercase",
+            color: colors.muted,
+            opacity: 0.35,
+          }}
+          numberOfLines={1}
+        >
+          {`LivSight${Constants.expoConfig?.version ? ` v${Constants.expoConfig.version}` : ""}`}
+        </AppText>
       </View>
     </ScreenLayout>
   );

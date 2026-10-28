@@ -48,14 +48,12 @@ function NotificationRow({
         style={{
           width: 40,
           height: 40,
-          borderRadius: radii.icon,
-          backgroundColor: colors.iconBg,
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
         }}
       >
-        <SolarIcon name={iconForNotificationKind(item.kind)} size={22} color={colors.primary} />
+        <SolarIcon name={iconForNotificationKind(item.kind)} size={24} color={colors.primary} />
       </View>
 
       <View style={{ flex: 1, minWidth: 0 }}>
