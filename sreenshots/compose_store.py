@@ -97,7 +97,8 @@ def load_mockup(path, frame_name, screen_name, screen_kind):
     }
 
 
-MOCK_IPHONE = load_mockup(PSD_IPHONE, "iPhone", "Design", "smartobject")
+# The "Design" GROUP carries the rounded-corner mask; the smartobject inside is square.
+MOCK_IPHONE = load_mockup(PSD_IPHONE, "iPhone", "Design", "group")
 MOCK_SAMSUNG = load_mockup(PSD_SAMSUNG, "Case", "Screen", "pixel")
 
 
@@ -188,6 +189,40 @@ def compose(raw_path, caption, style, canvas_size, caption_font_size, phone_widt
     return canvas.convert("RGB")
 
 
+def appstore_header():
+    """App Store product page header: 3840x1646 canvas, 1646x661 centered safe area.
+
+    Everything essential (logo, wordmark, tagline) stays inside the safe area;
+    the rest of the canvas is brand-gradient bleed that the store may crop.
+    """
+    W, H = 3840, 1646
+    img = vertical_gradient((W, H), PRIMARY, PRIMARY_DARK)
+    draw = ImageDraw.Draw(img)
+
+    safe_w, safe_h = 1646, 661
+    sx, sy = (W - safe_w) // 2, (H - safe_h) // 2
+
+    # Logo tile, left side of the safe area
+    logo_path = os.path.join(ROOT, "..", "assets", "images", "logo.png")
+    logo = Image.open(logo_path).convert("RGBA")
+    logo.thumbnail((300, 300), Image.LANCZOS)
+    tile_size = 360
+    tile = Image.new("RGBA", (tile_size, tile_size), (0, 0, 0, 0))
+    ImageDraw.Draw(tile).rounded_rectangle(
+        [0, 0, tile_size - 1, tile_size - 1], radius=86, fill=(255, 255, 255, 255)
+    )
+    tile.paste(logo, ((tile_size - logo.width) // 2, (tile_size - logo.height) // 2), logo)
+    img.paste(tile, (sx + 60, sy + (safe_h - tile_size) // 2), tile)
+
+    title_font = ImageFont.truetype(FONT_TITLE, 150)
+    sub_font = ImageFont.truetype(FONT_BODY, 62)
+    tx = sx + 60 + tile_size + 90
+    draw.text((tx, sy + 150), "LivSight", font=title_font, fill=(255, 255, 255))
+    draw.text((tx + 8, sy + 370), "Vos livraisons, maîtrisées.", font=sub_font, fill=(255, 255, 255, 235))
+
+    return img
+
+
 def feature_graphic():
     size = (1024, 500)
     img = vertical_gradient(size, PRIMARY, PRIMARY_DARK)
@@ -227,6 +262,9 @@ def main():
 
     feature_graphic().save(os.path.join(OUT_PLAY, "feature-graphic.png"))
     print("feature-graphic: play")
+
+    appstore_header().save(os.path.join(OUT_IOS, "product-page-header.png"))
+    print("product-page-header: ios")
 
 
 if __name__ == "__main__":
