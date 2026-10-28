@@ -25,7 +25,16 @@ export default function CenteredScreenHeader({
   onBackPress,
   rightSlot,
 }: Props) {
-  const back = onBackPress ?? (() => router.back());
+  const back =
+    onBackPress ??
+    (() => {
+      if (router.canGoBack()) {
+        router.back();
+        return;
+      }
+      // Deep link / empty stack: land on Accueil instead of a GO_BACK warning.
+      router.replace("/(tabs)");
+    });
 
   return (
     <View style={{ paddingBottom: compact ? 4 : 10 }}>
