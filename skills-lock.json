@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "app-store-screenshots": {
+      "source": "skills-101/superpowers",
+      "sourceType": "github",
+      "skillPath": "guides/design/app-store-screenshots/SKILL.md",
+      "computedHash": "528a965bb79118a30c52f82c781cc45b4c27b7cfb9e37fa300c1a4f086cfcd1c"
+    }
+  }
+}
