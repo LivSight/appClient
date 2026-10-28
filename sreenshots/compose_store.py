@@ -224,6 +224,43 @@ def appstore_header():
     return img
 
 
+def search_results_asset():
+    """App Store search results card: 3840x2560 (3:2).
+
+    Brand gradient, logo + tagline on the left, iPhone mockup (home screen)
+    bleeding off the bottom-right — essential content kept well inside margins.
+    """
+    W, H = 3840, 2560
+    img = vertical_gradient((W, H), PRIMARY, PRIMARY_DARK).convert("RGBA")
+    draw = ImageDraw.Draw(img)
+
+    # Phone on the right, bleeding off the bottom edge
+    phone = build_phone(os.path.join(RAW, "01-accueil.png"), MOCK_IPHONE)
+    scale = 2350 / phone.height
+    phone = phone.resize((int(phone.width * scale), 2350), Image.LANCZOS)
+    img.paste(phone, (W - phone.width - 330, H - phone.height + 290), phone)
+
+    # Logo tile + tagline on the left
+    logo_path = os.path.join(ROOT, "..", "assets", "images", "logo.png")
+    logo = Image.open(logo_path).convert("RGBA")
+    logo.thumbnail((240, 240), Image.LANCZOS)
+    tile_size = 300
+    tile = Image.new("RGBA", (tile_size, tile_size), (0, 0, 0, 0))
+    ImageDraw.Draw(tile).rounded_rectangle(
+        [0, 0, tile_size - 1, tile_size - 1], radius=72, fill=(255, 255, 255, 255)
+    )
+    tile.paste(logo, ((tile_size - logo.width) // 2, (tile_size - logo.height) // 2), logo)
+    img.paste(tile, (360, 560), tile)
+
+    title_font = ImageFont.truetype(FONT_TITLE, 230)
+    sub_font = ImageFont.truetype(FONT_BODY, 92)
+    draw.text((360, 1000), "Vos livraisons,", font=title_font, fill=(255, 255, 255))
+    draw.text((360, 1320), "maîtrisées.", font=title_font, fill=(255, 255, 255))
+    draw.text((368, 1750), "Commandez, suivez, gérez votre stock.", font=sub_font, fill=(255, 255, 255, 235))
+
+    return img.convert("RGB")
+
+
 def feature_graphic():
     size = (1024, 500)
     img = vertical_gradient(size, PRIMARY, PRIMARY_DARK)
@@ -271,6 +308,9 @@ def main():
 
     appstore_header().save(os.path.join(OUT_IOS, "product-page-header.png"))
     print("product-page-header: ios")
+
+    search_results_asset().save(os.path.join(OUT_IOS, "search-results.png"))
+    print("search-results: ios")
 
 
 if __name__ == "__main__":
