@@ -514,31 +514,6 @@ export default function LivraisonDetailScreen() {
             <RecipientCard phone={delivery.phone} />
           </View>
 
-          <View style={{ marginTop: 16 }}>
-            <Pressable
-              onPress={() => {
-                if (!delivery?.id) return;
-                void hapticLight();
-                router.push({ pathname: "/inbox/[id]", params: { id: String(delivery.id), intent: "report" } });
-              }}
-              style={{
-                minHeight: 56,
-                borderRadius: radii.pill,
-                backgroundColor: "#E5E7EB",
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "row",
-                gap: 10,
-                paddingVertical: 14,
-              }}
-            >
-              <SolarIcon name="solar:dialog-bold" size={24} color={colors.text} />
-              <AppText style={{ ...typography.bodyRegular, fontFamily: fonts.bodyBold }} numberOfLines={2} ellipsizeMode="tail">
-                Signaler un problème
-              </AppText>
-            </Pressable>
-          </View>
-
           {/* Summary & details */}
           <View style={{ marginTop: 18, gap: 16 }}>
             {/* Détails */}

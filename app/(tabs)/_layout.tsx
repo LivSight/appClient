@@ -73,7 +73,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <SolarIcon name="solar:widget-5-outline" color={color} size={size ?? 24} />,
         }}
       />
-      {/* Kept for deep links / detail “signaler”; hidden while unused in the tab bar. */}
+      {/* Kept for deep links / push routing; hidden while chat is off the tab bar. */}
       <Tabs.Screen
         name="inbox"
         options={{
