@@ -27,6 +27,7 @@ export type AnalyticsEvents = {
   document_telecharge: { type_rapport: string; periode: string; action: "telechargement" | "partage" };
   document_echec: { type_rapport: string; erreur: string };
   courses_filtrees: { filtre_statut: string; filtre_periode: string };
+  notification_recue: { type: string };
   notification_ouverte: { type: string; ecran_cible: string };
   tarif_zone_consulte: { zone: string };
 

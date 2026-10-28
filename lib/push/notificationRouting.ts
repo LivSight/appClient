@@ -196,6 +196,15 @@ export function parseTicketMessageNotificationRoute(
   return { transactionId: route.transactionId, ticketId: route.ticketId };
 }
 
+/**
+ * Analytics-safe notification type: the payload's `type` string, or "inconnu".
+ */
+export function notificationTypeForAnalytics(
+  data: Record<string, unknown> | null | undefined,
+): string {
+  return typeof data?.type === "string" ? data.type : "inconnu";
+}
+
 export function parsePushReceivedPayload(
   data: Record<string, unknown> | null | undefined,
 ): PushReceivedPayload | null {

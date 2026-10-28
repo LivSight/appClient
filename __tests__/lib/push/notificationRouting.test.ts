@@ -1,6 +1,7 @@
 import {
   isProductPushType,
   isTransactionPushType,
+  notificationTypeForAnalytics,
   parseClientPushType,
   parseDeliveryIdFromNotificationData,
   parsePushReceivedPayload,
@@ -184,5 +185,20 @@ describe("parsePushReceivedPayload", () => {
       transactionId: "1001",
       ticketId: undefined,
     });
+  });
+});
+
+describe("notificationTypeForAnalytics", () => {
+  it("returns the type string from the payload", () => {
+    expect(notificationTypeForAnalytics({ type: "transaction_status_changed" })).toBe(
+      "transaction_status_changed",
+    );
+  });
+
+  it("falls back to inconnu for missing or malformed types", () => {
+    expect(notificationTypeForAnalytics(null)).toBe("inconnu");
+    expect(notificationTypeForAnalytics(undefined)).toBe("inconnu");
+    expect(notificationTypeForAnalytics({})).toBe("inconnu");
+    expect(notificationTypeForAnalytics({ type: 42 })).toBe("inconnu");
   });
 });

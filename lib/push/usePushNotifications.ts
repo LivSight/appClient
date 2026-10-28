@@ -10,6 +10,7 @@ import { shouldRegisterPushNotifications } from "@/lib/push/pushConfig";
 import { emitPushReceived } from "@/lib/push/pushNotificationEvents";
 import {
   getDataFromNotification,
+  notificationTypeForAnalytics,
   parsePushReceivedPayload,
   resolveClientPushRoute,
   shouldSuppressClientPushPresentation,
@@ -26,7 +27,7 @@ async function navigateFromNotificationResponse(
   const route = resolveClientPushRoute(data);
   if (!route) return;
 
-  const notifType = typeof data?.type === "string" ? data.type : "inconnu";
+  const notifType = notificationTypeForAnalytics(data);
 
   if (route.screen === "inbox") {
     track("notification_ouverte", { type: notifType, ecran_cible: "inbox" });
@@ -109,6 +110,7 @@ export function usePushNotifications(pathname: string, checking: boolean) {
     const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
       const data = getDataFromNotification(notification);
       if (shouldSuppressClientPushPresentation(data)) return;
+      track("notification_recue", { type: notificationTypeForAnalytics(data) });
       const payload = parsePushReceivedPayload(data);
       if (payload) emitPushReceived(payload);
     });
