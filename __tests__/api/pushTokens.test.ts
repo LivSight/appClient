@@ -1,9 +1,9 @@
+import { apiFetch } from "@/lib/api/client";
+import { deletePushToken, registerPushToken } from "@/lib/api/pushTokens";
+
 jest.mock("@/lib/api/client", () => ({
   apiFetch: jest.fn(),
 }));
-
-import { apiFetch } from "@/lib/api/client";
-import { deletePushToken, registerPushToken } from "@/lib/api/pushTokens";
 
 const API_BASE = "http://localhost:4040";
 
@@ -12,7 +12,7 @@ describe("pushTokens API", () => {
     jest.clearAllMocks();
   });
 
-  it("POSTs token and platform to /api/push-tokens", async () => {
+  it("POSTs token, platform and app to /api/push-tokens", async () => {
     (apiFetch as jest.Mock).mockResolvedValue({ ok: true });
 
     await registerPushToken("ExponentPushToken[abc]");
@@ -20,7 +20,11 @@ describe("pushTokens API", () => {
     expect(apiFetch).toHaveBeenCalledWith(`${API_BASE}/api/push-tokens`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ expoPushToken: "ExponentPushToken[abc]", platform: "ios" }),
+      body: JSON.stringify({
+        expoPushToken: "ExponentPushToken[abc]",
+        platform: "ios",
+        app: "client",
+      }),
     });
   });
 

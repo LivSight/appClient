@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
+import { track } from "@/lib/analytics/events";
+import { errorLabel } from "@/lib/analytics/mappers";
 import ScreenLayout from "../components/ScreenLayout";
 import SolarIcon from "../components/SolarIcon";
 import CenteredScreenHeader from "../components/CenteredScreenHeader";
@@ -117,6 +119,7 @@ export default function AjouterAuStockScreen() {
         description: description_to_send,
         quantity: qty,
       });
+      track("ajout_stock_soumis", { nb_produits: qty });
       router.replace({
         pathname: "/confirmation-ajout-stock",
         params: {
@@ -126,6 +129,7 @@ export default function AjouterAuStockScreen() {
         },
       });
     } catch (e) {
+      track("ajout_stock_echoue", { erreur: errorLabel(e) });
       setError(e instanceof Error ? e.message : "Erreur lors de l&apos;ajout");
     } finally {
       setSubmitting(false);

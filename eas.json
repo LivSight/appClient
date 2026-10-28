@@ -19,7 +19,8 @@
       "env": {
         "APP_VARIANT": "staging",
         "EXPO_PUBLIC_GATEWAY_URL": "https://staging-gateway.livsight.com",
-        "EXPO_PUBLIC_ENABLE_PUSH": "true"
+        "EXPO_PUBLIC_ENABLE_PUSH": "true",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://eu.i.posthog.com"
       },
       "android": {
         "buildType": "apk"
@@ -31,7 +32,8 @@
       "env": {
         "APP_VARIANT": "production",
         "EXPO_PUBLIC_GATEWAY_URL": "https://gateway.livsight.com",
-        "EXPO_PUBLIC_ENABLE_PUSH": "true"
+        "EXPO_PUBLIC_ENABLE_PUSH": "true",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://eu.i.posthog.com"
       },
       "android": {
         "buildType": "app-bundle"

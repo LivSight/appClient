@@ -1,32 +1,45 @@
-import { useCallback, useMemo, useState } from "react";
-import { Alert, View, Pressable, RefreshControl, ActivityIndicator, useWindowDimensions } from "react-native";
-import { router } from "expo-router";
+import { useCallback, useMemo, useRef, useState } from "react";
+import LoadingState from "@/components/LoadingState";
+import {
+  Alert,
+  View,
+  Pressable,
+  ActivityIndicator,
+  ScrollView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { track } from "@/lib/analytics/events";
+import { errorLabel, reachedScrollMilestones } from "@/lib/analytics/mappers";
 import { useFocusEffect } from "expo-router/react-navigation";
 import ScreenLayout from "../../components/ScreenLayout";
 import MetricCard from "../../components/MetricCard";
 import SolarIcon from "../../components/SolarIcon";
-import { colors, fonts, radii, shadows, spacing, typography } from "../../theme/tokens";
+import StatusChipRow from "@/components/StatusChipRow";
+import { colors, fonts, radii, shadows, typography } from "../../theme/tokens";
 import AppText from "../../components/AppText";
 import ReportCustomDateRange from "@/components/ReportCustomDateRange";
 import {
   fetchDeliveryReport,
   fetchExpeditionReport,
   fetchSettlementReport,
-  fetchStockReport,
   sourceCountsFromDeliveries,
-  statusBucketsFromSummary,
+  statusChipsFromSummary,
   toReportDateParam,
   type DeliveryReport,
   type ExpeditionReport,
   type ReportKind,
   type SettlementReport,
-  type StockReport,
 } from "@/lib/api/reports";
 import { downloadAndShareReportPdf, isPdfPreviewAvailable, PDF_MODULES_UNAVAILABLE_MESSAGE } from "@/lib/reports/reportPdf";
 import {
+  dateRangeLabel,
   formatDeltaPct,
   formatPeriodLabel,
   formatXaf,
+  parseReportRangeParam,
+  reportPdfActionLabel,
   resolveReportPeriodBounds,
   type ReportRange,
 } from "@/lib/reports/aggregateReports";
@@ -51,54 +64,7 @@ function formatXafSigned(n: number): string {
   return n < 0 ? `-${formatXaf(-n)}` : formatXaf(n);
 }
 
-type StatusChip = {
-  label: string;
-  count: number;
-  iconName: string;
-  color: string;
-};
-
-function StatusChipRow({ chips }: { chips: StatusChip[] }) {
-  const { width } = useWindowDimensions();
-  const totalGap = spacing.gridColGap * (chips.length - 1);
-  const cardWidth = (width - spacing.screenPaddingX * 2 - totalGap) / chips.length;
-
-  return (
-    <View style={{ flexDirection: "row", gap: spacing.gridColGap }}>
-      {chips.map((chip) => (
-        <View
-          key={chip.label}
-          style={{
-            width: cardWidth,
-            backgroundColor: colors.cardBg,
-            borderRadius: radii.card,
-            paddingVertical: 14,
-            paddingHorizontal: 4,
-            alignItems: "center",
-            ...shadows.card,
-          }}
-        >
-          <SolarIcon name={chip.iconName} size={22} color={chip.color} />
-          <AppText
-            style={{ marginTop: 6, fontSize: 18, lineHeight: 24, fontFamily: fonts.bodyBold, color: colors.text }}
-            numberOfLines={1}
-          >
-            {String(chip.count)}
-          </AppText>
-          <AppText
-            variant="dense"
-            style={{ marginTop: 2, fontSize: 10, lineHeight: 14, fontFamily: fonts.bodySemi, color: "rgba(60,74,60,0.6)", textAlign: "center" }}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.7}
-          >
-            {chip.label}
-          </AppText>
-        </View>
-      ))}
-    </View>
-  );
-}
+const REPORT_RANGE_OPTIONS: ReportRange[] = ["Journalier", "Hier", "Hebdo", "Mensuel", "Personnalisé"];
 
 function RangeToggle({
   value,
@@ -107,55 +73,50 @@ function RangeToggle({
   value: ReportRange;
   onChange: (v: ReportRange) => void;
 }) {
-  const opts: ReportRange[] = ["Journalier", "Hebdo", "Mensuel", "Personnalisé"];
   return (
-    <View
-      style={{
-        minHeight: 48,
-        borderRadius: radii.pill,
-        backgroundColor: "#F1F3F5",
-        padding: 6,
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 6,
-        marginTop: 14,
-      }}
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ marginTop: 14 }}
+      contentContainerStyle={{ gap: 6, paddingRight: 4 }}
     >
-      {opts.map((o) => {
-        const active = o === value;
-        const label = o === "Personnalisé" ? "Perso." : o;
+      {REPORT_RANGE_OPTIONS.map((option) => {
+        const active = option === value;
         return (
           <Pressable
-            key={o}
-            onPress={() => onChange(o)}
+            key={option}
+            onPress={() => onChange(option)}
             style={{
-              flexGrow: 1,
-              flexBasis: o === "Personnalisé" ? "22%" : "23%",
-              minWidth: 72,
+              minHeight: 48,
+              minWidth: 88,
               borderRadius: radii.pill,
-              backgroundColor: active ? colors.white : "transparent",
+              backgroundColor: active ? colors.white : "#F1F3F5",
               alignItems: "center",
               justifyContent: "center",
               paddingVertical: 8,
-              paddingHorizontal: 4,
+              paddingHorizontal: 14,
             }}
           >
             <AppText
               variant="dense"
-              style={{ fontSize: 11, fontFamily: active ? fonts.bodyBold : fonts.bodySemi, color: colors.text }}
+              style={{
+                fontSize: 12,
+                lineHeight: 17,
+                fontFamily: active ? fonts.bodyBold : fonts.bodySemi,
+                color: colors.text,
+              }}
               numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
             >
-              {label}
+              {dateRangeLabel(option)}
             </AppText>
           </Pressable>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 
+/** Same primary pill CTA pattern as Stock “Visualiser et télécharger”. */
 function PdfButton({
   label,
   busy,
@@ -168,44 +129,53 @@ function PdfButton({
   return (
     <Pressable
       onPress={busy ? undefined : onPress}
+      disabled={busy}
       style={{
-        flexGrow: 1,
-        flexBasis: "45%",
-        minHeight: 52,
+        minHeight: 48,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
         borderRadius: radii.pill,
-        backgroundColor: colors.white,
-        borderWidth: 1,
-        borderColor: "rgba(48,144,192,0.35)",
-        flexDirection: "row",
+        backgroundColor: colors.primary,
         alignItems: "center",
         justifyContent: "center",
-        gap: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 12,
-        opacity: busy ? 0.6 : 1,
+        opacity: busy ? 0.7 : 1,
       }}
     >
       {busy ? (
-        <ActivityIndicator size="small" color={colors.primary} />
+        <ActivityIndicator size="small" color={colors.white} />
       ) : (
-        <SolarIcon name="solar:download-outline" size={20} color={colors.primary} />
+        <AppText
+          style={{
+            fontSize: 14,
+            lineHeight: 20,
+            fontFamily: fonts.bodySemi,
+            color: colors.white,
+            textAlign: "center",
+          }}
+          numberOfLines={2}
+        >
+          {label}
+        </AppText>
       )}
-      <AppText
-        variant="dense"
-        style={{ fontSize: 13, lineHeight: 18, fontFamily: fonts.bodyBold, color: colors.primary }}
-        numberOfLines={1}
-      >
-        {label}
-      </AppText>
     </Pressable>
   );
 }
 
 export default function RapportsScreen() {
-  const [range, setRange] = useState<ReportRange>("Journalier");
+  const { range: rangeParam } = useLocalSearchParams<{ range?: string }>();
+  const [range, setRange] = useState<ReportRange>(() => parseReportRangeParam(rangeParam) ?? "Journalier");
   const [customStart, setCustomStart] = useState(() => startOfMonth(new Date()));
   const [customEnd, setCustomEnd] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
+
+  // Deep link / notification: apply Journalier | Mensuel | … when `range` query is present.
+  // State adjusted during render (React "adjusting state when a prop changes" pattern).
+  const parsedRangeParam = parseReportRangeParam(Array.isArray(rangeParam) ? rangeParam[0] : rangeParam);
+  const [appliedRangeParam, setAppliedRangeParam] = useState(parsedRangeParam);
+  if (parsedRangeParam && parsedRangeParam !== appliedRangeParam) {
+    setAppliedRangeParam(parsedRangeParam);
+    setRange(parsedRangeParam);
+  }
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settlement, setSettlement] = useState<SettlementReport | null>(null);
@@ -214,7 +184,6 @@ export default function RapportsScreen() {
   const [previousReport, setPreviousReport] = useState<DeliveryReport | null>(null);
   const [expeditionReport, setExpeditionReport] = useState<ExpeditionReport | null>(null);
   const [previousExpeditionReport, setPreviousExpeditionReport] = useState<ExpeditionReport | null>(null);
-  const [stockReport, setStockReport] = useState<StockReport | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState<ReportKind | null>(null);
 
   const period = useMemo(() => {
@@ -228,7 +197,7 @@ export default function RapportsScreen() {
   }, [range, customStart, customEnd]);
 
   const loadReports = useCallback(
-    async (mode: "initial" | "refresh" = "initial") => {
+    async (mode: "initial" | "refresh" | "silent" = "initial") => {
       try {
         if (mode === "initial") setLoading(true);
         if (mode === "refresh") setRefreshing(true);
@@ -242,10 +211,9 @@ export default function RapportsScreen() {
             return null;
           });
 
-        const [settlementCurrent, settlementPrevious, stock] = await Promise.all([
+        const [settlementCurrent, settlementPrevious] = await Promise.all([
           fetchSettlementSafe(period.start, period.end),
           fetchSettlementSafe(period.prevStart, period.prevEnd),
-          fetchStockReport(period.start, period.end),
         ]);
 
         if (settlementCurrent) {
@@ -276,7 +244,6 @@ export default function RapportsScreen() {
           setExpeditionReport(expeditions);
           setPreviousExpeditionReport(previousExpeditions);
         }
-        setStockReport(stock);
       } catch (e: unknown) {
         logger.warn("rapports", "load failed", e);
         setError("Impossible de charger vos rapports. Vérifiez votre connexion et réessayez.");
@@ -288,18 +255,45 @@ export default function RapportsScreen() {
     [period],
   );
 
+  const scrollMilestonesRef = useRef<Set<number>>(new Set());
+
+  // Full loader only on the first load of a given period; refocusing the tab with
+  // the same period refreshes silently so the content doesn't flash a spinner.
+  const loadedPeriodRef = useRef<string | null>(null);
   useFocusEffect(
     useCallback(() => {
-      void loadReports("initial");
-    }, [loadReports]),
+      scrollMilestonesRef.current = new Set();
+      const periodKey = `${period.start}|${period.end}`;
+      const mode = loadedPeriodRef.current === periodKey ? "silent" : "initial";
+      void loadReports(mode).finally(() => {
+        loadedPeriodRef.current = periodKey;
+      });
+    }, [loadReports, period.start, period.end]),
   );
+
+  function onReportScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+    for (const milestone of reachedScrollMilestones(
+      contentOffset.y,
+      layoutMeasurement.height,
+      contentSize.height,
+    )) {
+      if (!scrollMilestonesRef.current.has(milestone)) {
+        scrollMilestonesRef.current.add(milestone);
+        track("rapport_scroll", { profondeur: milestone });
+      }
+    }
+  }
 
   const periodLabel = useMemo(
     () => formatPeriodLabel(range, new Date(), { start: customStart, end: customEnd }),
     [range, customStart, customEnd],
   );
 
-  const buckets = useMemo(() => statusBucketsFromSummary(report?.status_summary), [report?.status_summary]);
+  const statusChips = useMemo(
+    () => statusChipsFromSummary(report?.status_summary),
+    [report?.status_summary],
+  );
   const sources = useMemo(() => sourceCountsFromDeliveries(report?.deliveries), [report?.deliveries]);
 
   // Sections conditionnées aux données (comme le PDF) : livraisons et expéditions
@@ -313,14 +307,19 @@ export default function RapportsScreen() {
   async function onDownloadPdf(kind: ReportKind) {
     // Prévisualisation in-app quand le build le permet ; sinon partage direct (ancien flux).
     if (pdfPreviewAvailable) {
-      router.push({ pathname: "/rapport-pdf-preview", params: { kind, start: period.start, end: period.end } });
+      router.push({
+        pathname: "/rapport-pdf-preview",
+        params: { kind, start: period.start, end: period.end, range },
+      });
       return;
     }
     if (downloadingPdf) return;
     setDownloadingPdf(kind);
     try {
       await downloadAndShareReportPdf(kind, period.start, period.end);
+      track("document_telecharge", { type_rapport: kind, periode: range, action: "telechargement" });
     } catch (e: unknown) {
+      track("document_echec", { type_rapport: kind, erreur: errorLabel(e) });
       logger.warn("rapports", "pdf download failed", e);
       const message =
         e instanceof Error && e.message === PDF_MODULES_UNAVAILABLE_MESSAGE
@@ -333,12 +332,7 @@ export default function RapportsScreen() {
   }
 
   const body = loading ? (
-    <View style={{ paddingVertical: 48, alignItems: "center" }}>
-      <ActivityIndicator size="large" color={colors.primary} />
-      <AppText style={{ ...typography.subtitle, marginTop: 12 }} numberOfLines={2}>
-        Chargement des rapports…
-      </AppText>
-    </View>
+    <LoadingState label="Chargement des rapports…" />
   ) : error ? (
     <View style={{ marginTop: 18, padding: 16, backgroundColor: colors.cardBg, borderRadius: radii.card }}>
       <AppText style={typography.bodyRegular} numberOfLines={4}>
@@ -404,12 +398,8 @@ export default function RapportsScreen() {
               Statuts
             </AppText>
             <StatusChipRow
-              chips={[
-                { label: "En cours", count: buckets.enCours, iconName: "solar:clock-circle-outline", color: colors.primary },
-                { label: "Livré", count: buckets.delivered, iconName: "solar:check-circle-bold", color: "#16A34A" },
-                { label: "Injoignable", count: buckets.injoignable, iconName: "solar:phone-outline", color: "#B45309" },
-                { label: "Annulé", count: buckets.annule, iconName: "solar:close-circle-bold", color: "#DC2626" },
-              ]}
+              chips={statusChips}
+              scrollHintKey={statusChips.length > 4 ? `${period.start}_${period.end}` : undefined}
             />
           </View>
         </>
@@ -530,55 +520,30 @@ export default function RapportsScreen() {
         </>
       ) : null}
 
-      <View style={{ marginTop: 18 }}>
-        <AppText style={{ ...typography.sectionTitle, fontSize: 14, lineHeight: 20, marginBottom: 12 }} numberOfLines={1}>
-          Stock en magasin
-        </AppText>
-        <StatusChipRow
-          chips={[
-            { label: "Produits", count: safeCount(stockReport?.total_products), iconName: "solar:box-bold-duotone", color: colors.primary },
-            { label: "Quantité totale", count: safeCount(stockReport?.total_quantity_in_stock), iconName: "solar:box-bold", color: colors.primary },
-            { label: "En rupture", count: safeCount(stockReport?.out_of_stock_count), iconName: "solar:danger-circle-bold", color: "#DC2626" },
-          ]}
-        />
-      </View>
-
-      <View style={{ marginTop: 22, flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-        {settlement && hasActivity ? (
-          <PdfButton
-            label="PDF Relevé de solde"
-            busy={downloadingPdf === "settlement"}
-            onPress={() => void onDownloadPdf("settlement")}
-          />
-        ) : null}
+      <View style={{ marginTop: 22, gap: 12 }}>
         {hasDeliveries ? (
           <PdfButton
-            label="PDF Livraisons"
+            label={reportPdfActionLabel(range, "deliveries")}
             busy={downloadingPdf === "deliveries"}
             onPress={() => void onDownloadPdf("deliveries")}
           />
         ) : null}
         {hasExpeditions ? (
           <PdfButton
-            label="PDF Expéditions"
+            label={reportPdfActionLabel(range, "expeditions")}
             busy={downloadingPdf === "expeditions"}
             onPress={() => void onDownloadPdf("expeditions")}
           />
         ) : null}
-        <PdfButton
-          label="PDF Stock"
-          busy={downloadingPdf === "stock"}
-          onPress={() => void onDownloadPdf("stock")}
-        />
       </View>
     </>
   );
 
   return (
     <ScreenLayout
-      scrollViewProps={{
-        refreshControl: <RefreshControl refreshing={refreshing} onRefresh={() => void loadReports("refresh")} />,
-      }}
+      refreshing={refreshing && !loading}
+      onRefresh={() => void loadReports("refresh")}
+      scrollViewProps={{ onScroll: onReportScroll, scrollEventThrottle: 250 }}
       header={
         <View style={{ paddingBottom: 10 }}>
           <AppText style={[typography.screenTitle, { fontSize: 26, lineHeight: 34 }]} numberOfLines={2}>

@@ -1,16 +1,12 @@
-import { ActivityIndicator, View } from "react-native";
 import { Redirect } from "expo-router";
+import LoadingState from "@/components/LoadingState";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export default function Index() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
-      </View>
-    );
+    return <LoadingState fullScreen />;
   }
 
   return <Redirect href={isAuthenticated ? "/(tabs)" : "/login"} />;

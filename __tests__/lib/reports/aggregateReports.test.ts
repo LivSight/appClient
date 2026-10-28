@@ -1,7 +1,12 @@
 import {
   aggregateReports,
   countServiceTypes,
+  dateRangeLabel,
   filterTransactionsInRange,
+  formatPeriodLabel,
+  reportPdfActionLabel,
+  reportPdfPreviewTitle,
+  parseReportRangeParam,
   getCustomPeriodBounds,
   getPeriodBounds,
   normalizeCustomDateRange,
@@ -43,6 +48,71 @@ describe("aggregateReports", () => {
       expect(current.start.getMonth()).toBe(4);
       expect(current.start.getFullYear()).toBe(2026);
       expect(previous.start.getMonth()).toBe(3);
+    });
+
+    it("Hier uses yesterday and the day before", () => {
+      const { current, previous } = getPeriodBounds("Hier", NOW);
+      expect(current.start.getDate()).toBe(29);
+      expect(current.end.getDate()).toBe(29);
+      expect(previous.start.getDate()).toBe(28);
+      expect(previous.end.getDate()).toBe(28);
+    });
+  });
+
+  describe("dateRangeLabel", () => {
+    it("returns short labels for preset ranges", () => {
+      expect(dateRangeLabel("Journalier")).toBe("Aujourd'hui");
+      expect(dateRangeLabel("Hier")).toBe("Hier");
+      expect(dateRangeLabel("Hebdo")).toBe("Cette semaine");
+      expect(dateRangeLabel("Mensuel")).toBe("Ce mois");
+      expect(dateRangeLabel("Personnalisé")).toBe("Personnalisé");
+    });
+  });
+
+  describe("reportPdfActionLabel", () => {
+    it("names delivery PDF actions from the active period filter", () => {
+      expect(reportPdfActionLabel("Journalier", "deliveries")).toBe("Visualiser mon rapport journalier");
+      expect(reportPdfActionLabel("Hier", "deliveries")).toBe("Visualiser mon rapport d'hier");
+      expect(reportPdfActionLabel("Hebdo", "deliveries")).toBe("Visualiser mon rapport hebdomadaire");
+      expect(reportPdfActionLabel("Mensuel", "deliveries")).toBe("Visualiser mon rapport mensuel");
+      expect(reportPdfActionLabel("Personnalisé", "deliveries")).toBe("Visualiser mon rapport personnalisé");
+    });
+
+    it("names expedition PDF actions from the active period filter", () => {
+      expect(reportPdfActionLabel("Journalier", "expeditions")).toBe(
+        "Visualiser mon rapport d'expédition journalier",
+      );
+      expect(reportPdfActionLabel("Hier", "expeditions")).toBe("Visualiser mon rapport d'expédition d'hier");
+    });
+  });
+
+  describe("reportPdfPreviewTitle", () => {
+    it("matches CTA naming when a period range is provided", () => {
+      expect(reportPdfPreviewTitle("deliveries", "Journalier")).toBe("Visualiser mon rapport journalier");
+      expect(reportPdfPreviewTitle("expeditions", "Mensuel")).toBe(
+        "Visualiser mon rapport d'expédition mensuel",
+      );
+    });
+
+    it("uses fixed titles for stock and settlement", () => {
+      expect(reportPdfPreviewTitle("stock")).toBe("Visualiser mon rapport de stock");
+      expect(reportPdfPreviewTitle("settlement")).toBe("Visualiser mon relevé de solde");
+    });
+  });
+
+  describe("parseReportRangeParam", () => {
+    it("accepts known report ranges only", () => {
+      expect(parseReportRangeParam("Hebdo")).toBe("Hebdo");
+      expect(parseReportRangeParam("nope")).toBeNull();
+    });
+  });
+
+  describe("formatPeriodLabel", () => {
+    it("formats Hier with yesterday date", () => {
+      const label = formatPeriodLabel("Hier", NOW);
+      expect(label).toContain("Hier");
+      expect(label).toContain("29");
+      expect(label).toContain("mai");
     });
   });
 
@@ -138,8 +208,8 @@ describe("aggregateReports", () => {
   describe("sumStockMetrics", () => {
     it("counts products and total quantity", () => {
       const stock = sumStockMetrics([
-        { package_name: "A", quantity: 3, user_id: 1 },
-        { package_name: "B", quantity: 5, user_id: 1 },
+        { package_name: "A", description: "", quantity: 3, defective_quantity: 0, user_id: 1 },
+        { package_name: "B", description: "", quantity: 5, defective_quantity: 0, user_id: 1 },
       ]);
       expect(stock.productsCount).toBe(2);
       expect(stock.qtyTotal).toBe(8);
@@ -168,7 +238,7 @@ describe("aggregateReports", () => {
         range: "Journalier",
         now: NOW,
         transactions,
-        packages: [{ package_name: "Sac", quantity: 2, user_id: 1 }],
+        packages: [{ package_name: "Sac", description: "", quantity: 2, defective_quantity: 0, user_id: 1 }],
       });
 
       expect(result.serviceTypes.livraison).toBeGreaterThanOrEqual(0);

@@ -4,6 +4,8 @@ import {
   formatScheduledDeliveryLabel,
   isoDateFromDateInSchedulingTimezone,
   isScheduledDeliveryToday,
+  isScheduledDeliveryTomorrow,
+  tomorrowIsoInSchedulingTimezone,
   isScheduledDeliveryDateValid,
   parseIsoDateOnly,
   SCHEDULING_TIMEZONE,
@@ -61,6 +63,12 @@ describe("deliveryDate", () => {
   it("returns today ISO in scheduling timezone", () => {
     const now = new Date("2026-07-09T12:00:00Z");
     expect(todayIsoInSchedulingTimezone(now)).toBe("2026-07-09");
+  });
+
+  it("computes tomorrow in scheduling timezone", () => {
+    const now = new Date("2026-07-09T12:00:00Z");
+    expect(tomorrowIsoInSchedulingTimezone(now)).toBe("2026-07-10");
+    expect(isScheduledDeliveryTomorrow("2026-07-10", now)).toBe(true);
   });
 
   it("capitalizes display label except for today", () => {

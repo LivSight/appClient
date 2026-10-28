@@ -163,6 +163,97 @@ export function statusBucketsFromSummary(summary: ReportStatusSummaryItem[] | un
   return buckets;
 }
 
+/** French labels aligned with backend ReportFormatting.statusLabel. */
+const STATUS_LABELS: Record<string, string> = {
+  pending: "En attente",
+  pret: "Prêt",
+  processing: "En cours",
+  completed: "Livré",
+  events: "Événement",
+  failed: "Annulé",
+  postponed: "Renvoyé",
+  collected_at_office: "Au bureau",
+  client_absent: "Client absent",
+  unreachable: "Injoignable",
+  does_not_pick_up: "Ne décroche pas",
+  scheduled: "Planifiée",
+};
+
+/** Statuses whose French label matches a primary chip — skip as extras (already in the 4 buckets). */
+const PRIMARY_STATUS_KEYS = new Set(["processing", "completed", "unreachable", "failed"]);
+
+const CHIP_PRIMARY = "#0EA5E9";
+
+const EXTRA_STATUS_META: Record<string, { iconName: string; color: string }> = {
+  pending: { iconName: "solar:clock-circle-outline", color: CHIP_PRIMARY },
+  pret: { iconName: "solar:box-outline", color: CHIP_PRIMARY },
+  events: { iconName: "solar:record-circle-bold", color: CHIP_PRIMARY },
+  postponed: { iconName: "solar:calendar-outline", color: "#B45309" },
+  collected_at_office: { iconName: "solar:check-circle-bold", color: "#16A34A" },
+  client_absent: { iconName: "solar:phone-outline", color: "#B45309" },
+  does_not_pick_up: { iconName: "solar:phone-outline", color: "#B45309" },
+  scheduled: { iconName: "solar:calendar-outline", color: CHIP_PRIMARY },
+};
+
+export type ReportStatusChip = {
+  label: string;
+  count: number;
+  iconName: string;
+  color: string;
+};
+
+/**
+ * Four primary status buckets, then any other backend statuses with count > 0
+ * (for a horizontally scrollable chip row on Rapports).
+ */
+export function statusChipsFromSummary(
+  summary: ReportStatusSummaryItem[] | undefined,
+): ReportStatusChip[] {
+  const buckets = statusBucketsFromSummary(summary);
+  const chips: ReportStatusChip[] = [
+    {
+      label: "En cours",
+      count: buckets.enCours,
+      iconName: "solar:clock-circle-outline",
+      color: CHIP_PRIMARY,
+    },
+    {
+      label: "Livré",
+      count: buckets.delivered,
+      iconName: "solar:check-circle-bold",
+      color: "#16A34A",
+    },
+    {
+      label: "Injoignable",
+      count: buckets.injoignable,
+      iconName: "solar:phone-outline",
+      color: "#B45309",
+    },
+    {
+      label: "Annulé",
+      count: buckets.annule,
+      iconName: "solar:close-circle-bold",
+      color: "#DC2626",
+    },
+  ];
+
+  for (const item of summary ?? []) {
+    const status = String(item?.status ?? "").trim().toLowerCase();
+    const count = Number(item?.count ?? 0);
+    if (!status || !Number.isFinite(count) || count <= 0) continue;
+    if (PRIMARY_STATUS_KEYS.has(status)) continue;
+    const label = STATUS_LABELS[status];
+    if (!label) continue;
+    const meta = EXTRA_STATUS_META[status] ?? {
+      iconName: "solar:box-outline",
+      color: CHIP_PRIMARY,
+    };
+    chips.push({ label, count, iconName: meta.iconName, color: meta.color });
+  }
+
+  return chips;
+}
+
 export type ReportSourceCounts = {
   stock: number;
   pickup: number;

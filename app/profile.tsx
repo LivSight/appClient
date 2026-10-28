@@ -1,5 +1,7 @@
-import { Alert, View, Pressable, ActivityIndicator, Linking } from "react-native";
+import { Alert, View, Pressable, Linking } from "react-native";
 import { useCallback, useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import LoadingState from "@/components/LoadingState";
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
@@ -12,8 +14,9 @@ import AppText from "../components/AppText";
 import type { User } from "@/lib/api/users";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { displayEmail, displayFullName, displayInitials, displayPhone } from "@/lib/userDisplay";
+import { displayEmail, displayFullName, displayPhone } from "@/lib/userDisplay";
 import { logger } from "@/lib/logger";
+import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 
 const SUPPORT_EMAIL = "livsight@gmail.com";
 const APP_VERSION = Constants.expoConfig?.version;
@@ -85,9 +88,9 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const loadUser = useCallback(async () => {
+  const loadUser = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     try {
-      setLoading(true);
+      if (mode === "initial") setLoading(true);
       setError(null);
       const data = await getCurrentUser();
       if (!data) {
@@ -101,9 +104,11 @@ export default function ProfileScreen() {
       setUser(null);
       setError("Vérifiez votre connexion internet et réessayez.");
     } finally {
-      setLoading(false);
+      if (mode === "initial") setLoading(false);
     }
   }, []);
+
+  const { refreshing, onRefresh } = usePullToRefresh(() => loadUser("refresh"));
 
   useFocusEffect(
     useCallback(() => {
@@ -160,10 +165,11 @@ export default function ProfileScreen() {
   const fullName = displayFullName(user);
   const emailLabel = displayEmail(user);
   const phoneLabel = displayPhone(user);
-  const initials = displayInitials(user);
 
   return (
     <ScreenLayout
+      refreshing={refreshing}
+      onRefresh={onRefresh}
       header={
         <View style={{ minHeight: 44, paddingVertical: 8, flexDirection: "row", alignItems: "center" }}>
           <Pressable
@@ -185,13 +191,8 @@ export default function ProfileScreen() {
         </View>
       }
     >
-      {loading ? (
-        <View style={{ alignItems: "center", paddingVertical: 48 }}>
-          <ActivityIndicator color={colors.primary} />
-          <AppText style={{ ...typography.subtitle, marginTop: 12 }} numberOfLines={1}>
-            Chargement…
-          </AppText>
-        </View>
+      {loading && !refreshing ? (
+        <LoadingState label="Chargement…" />
       ) : error ? (
         <View style={[card.base, { padding: 20, marginTop: 8 }]}>
           <AppText style={{ ...typography.cardTitle, fontSize: 16, lineHeight: 24 }} numberOfLines={2}>
@@ -223,34 +224,60 @@ export default function ProfileScreen() {
         </View>
       ) : (
         <>
-          <View style={{ alignItems: "center", marginTop: 8, marginBottom: 22 }}>
+          <LinearGradient
+            colors={[colors.primary, colors.primaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              borderRadius: radii.card,
+              padding: 24,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 16,
+              overflow: "hidden",
+              marginTop: 8,
+              marginBottom: 24,
+            }}
+          >
             <View
+              testID="profile-avatar"
               style={{
-                width: 112,
-                height: 112,
-                borderRadius: 40,
-                backgroundColor: "rgba(48,144,192,0.12)",
-                borderWidth: 4,
-                borderColor: colors.white,
+                width: 68,
+                height: 68,
+                borderRadius: 34,
+                backgroundColor: "rgba(255,255,255,0.18)",
+                borderWidth: 1.5,
+                borderColor: "rgba(255,255,255,0.45)",
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <AppText style={{ fontSize: 36, lineHeight: 44, fontFamily: fonts.bodyBold, color: colors.primary }} numberOfLines={1}>
-                {initials}
+              <SolarIcon name="solar:user-rounded-bold" size={36} color={colors.white} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <AppText
+                style={{ fontSize: 20, lineHeight: 28, fontFamily: fonts.titleSemi, letterSpacing: -0.3, color: colors.white }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {fullName}
+              </AppText>
+              <AppText
+                style={{ fontSize: 13, lineHeight: 18, fontFamily: fonts.bodyMedium, color: "rgba(255,255,255,0.85)", marginTop: 3 }}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {emailLabel}
+              </AppText>
+              <AppText
+                style={{ fontSize: 13, lineHeight: 18, fontFamily: fonts.bodyMedium, color: "rgba(255,255,255,0.75)", marginTop: 2 }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {phoneLabel}
               </AppText>
             </View>
-
-            <AppText style={{ marginTop: 12, fontSize: 24, fontFamily: fonts.bodyBold, color: colors.text }} numberOfLines={2} ellipsizeMode="tail">
-              {fullName}
-            </AppText>
-            <AppText variant="dense" style={{ marginTop: 6, fontSize: 15, fontFamily: fonts.bodySemi, color: colors.muted, opacity: 0.85 }} numberOfLines={1} ellipsizeMode="tail">
-              {emailLabel}
-            </AppText>
-            <AppText variant="dense" style={{ marginTop: 4, fontSize: 16, fontFamily: fonts.bodySemi, color: colors.muted, opacity: 0.7 }} numberOfLines={1} ellipsizeMode="tail">
-              {phoneLabel}
-            </AppText>
-          </View>
+          </LinearGradient>
 
           <View style={{ gap: 24 }}>
             <View style={[card.base, { paddingVertical: 0, paddingHorizontal: 0 }]}>

@@ -1,6 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Alert, View, Pressable } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { track } from "@/lib/analytics/events";
+import { errorLabel } from "@/lib/analytics/mappers";
+import { useQuartierLookupTracking } from "@/lib/analytics/useQuartierLookupTracking";
 import ScreenLayout from "../components/ScreenLayout";
 import AppText from "../components/AppText";
 import FormButton from "../components/FormButton";
@@ -8,7 +11,11 @@ import SolarIcon from "../components/SolarIcon";
 import CenteredScreenHeader from "../components/CenteredScreenHeader";
 import { card } from "../theme/styles";
 import { colors, fonts, typography } from "../theme/tokens";
-import { hapticSuccess } from "@/lib/haptics";
+import { hapticError, hapticSuccess } from "@/lib/haptics";
+import {
+  formatCreateTransactionError,
+  getPickupResumeValidationError,
+} from "@/lib/transactions/transactionFormValidation";
 import { buildExpeditionDepartureStreet, isExpeditionService, parseExpeditionClient } from "@/lib/expeditionClient";
 import { createTransaction, buildPayloadFromPickupResume } from "@/lib/api/transactions";
 import DeliveryFeeTotalCard from "../components/DeliveryFeeTotalCard";
@@ -121,6 +128,17 @@ export default function ResumeProduitRamasseScreen() {
   const collectCash = params.pickupCollectCash === "yes" ? "yes" : "no";
   const amount = parseIntSafe(typeof params.pickupAmount === "string" ? params.pickupAmount : "");
   const forExpedition = isExpeditionService(typeof params.service === "string" ? params.service : undefined);
+  const submittedRef = useRef(false);
+  const flowRef = useRef<"livraison" | "expedition">("livraison");
+  useEffect(() => {
+    flowRef.current = forExpedition ? "expedition" : "livraison";
+  }, [forExpedition]);
+  useEffect(
+    () => () => {
+      if (!submittedRef.current) track("demande_abandonnee", { flow: flowRef.current, etape: "resume" });
+    },
+    [],
+  );
   const expAgence = typeof params.expAgence === "string" ? params.expAgence : "";
   const expPickupAddress = typeof params.expPickupAddress === "string" ? params.expPickupAddress : "";
   const expeditionClient = useMemo(
@@ -187,6 +205,11 @@ export default function ResumeProduitRamasseScreen() {
     forExpedition ? "" : destinationQuartier,
     express,
   );
+  useQuartierLookupTracking(
+    forExpedition ? "" : destinationQuartier,
+    deliveryFeeLoading,
+    deliveryFeeEstimate.available,
+  );
 
   function goEdit(editSection: string) {
     router.push({
@@ -233,9 +256,25 @@ export default function ResumeProduitRamasseScreen() {
   // No useCallback: the React Compiler memoizes this; manual deps with member
   // expressions (deliveryFeeEstimate.total, expeditionClient?.clientName) block compilation.
   const handleConfirm = async () => {
-    await hapticSuccess();
     const pickupStreet = pickupAddressV2.trim();
     const dropoffStreet = dropoffAddressV2.trim();
+    const validationError = getPickupResumeValidationError({
+      forExpedition,
+      itemName,
+      phone,
+      pickupStreet,
+      dropoffStreet,
+      scheduledDeliveryDate,
+      deliveryFeeLoading,
+      deliveryFeeAvailable: deliveryFeeEstimate.available,
+    });
+    if (validationError) {
+      await hapticError();
+      Alert.alert("Informations manquantes", validationError);
+      return;
+    }
+
+    await hapticSuccess();
     const descriptionToSend = pickupStreet ? `Ramassage: ${pickupStreet}` : "Aucune description donnée";
     const amountDueNumber = collectCash === "yes" ? Math.max(0, Math.round(amount)) : 0;
     const amountDueFallback =
@@ -264,6 +303,12 @@ export default function ResumeProduitRamasseScreen() {
           scheduledDeliveryDate,
         }),
       );
+      submittedRef.current = true;
+      track("demande_soumise", {
+        flow: flowRef.current,
+        source: "ramasse",
+        nb_produits: qty > 0 ? qty : 1,
+      });
       const createdId = created?.id ?? created?.data?.id ?? created?.transactionReference;
       router.push({
         pathname: "/confirmee",
@@ -273,10 +318,12 @@ export default function ResumeProduitRamasseScreen() {
           ...(forExpedition ? { flow: "expedition" } : {}),
         },
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
+      track("demande_echouee", { flow: flowRef.current, source: "ramasse", erreur: errorLabel(e) });
+      await hapticError();
       Alert.alert(
         "Erreur",
-        String(e?.message ?? e ?? (forExpedition ? "Impossible de créer l'expédition." : "Impossible de créer la livraison.")),
+        formatCreateTransactionError(e, forExpedition ? "expedition" : "livraison"),
       );
     }
   };
@@ -290,6 +337,18 @@ export default function ResumeProduitRamasseScreen() {
           showBack
           compact
         />
+      }
+      footer={
+        <View
+          style={{
+            backgroundColor: "transparent",
+            paddingHorizontal: 24,
+            paddingTop: 14,
+            paddingBottom: 28,
+          }}
+        >
+          <FormButton label="Confirmer la commande" onPress={handleConfirm} />
+        </View>
       }
     >
       <AppText
@@ -488,10 +547,6 @@ export default function ResumeProduitRamasseScreen() {
             )}
           </Card>
         </View>
-      </View>
-
-      <View style={{ marginTop: 24 }}>
-        <FormButton label="Confirmer la commande" onPress={handleConfirm} />
       </View>
     </ScreenLayout>
   );

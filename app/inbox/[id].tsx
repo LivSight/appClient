@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { track } from "@/lib/analytics/events";
 import { useFocusEffect } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "@/components/AppText";
@@ -28,6 +29,7 @@ import {
   inboxCategoryBannerLabel,
   isCollectingCash,
 } from "@/lib/api/transactionUi";
+import { formatDbText } from "@/lib/formatDisplayText";
 import { colors, fonts, radii, spacing, typography } from "@/theme/tokens";
 
 type TxInfo = {
@@ -55,8 +57,8 @@ function mapTransactionToTxInfo(tx: Transaction): TxInfo {
 
   const location =
     typeRaw === "expedition"
-      ? `${tx.departure?.city?.trim() || "—"} → ${tx.destination?.city?.trim() || "—"}`
-      : tx.destination?.street?.trim() || "—";
+      ? `${formatDbText(tx.departure?.city) || "—"} → ${formatDbText(tx.destination?.city) || "—"}`
+      : formatDbText(tx.destination?.street) || "—";
 
   return {
     ref,
@@ -326,6 +328,10 @@ export default function InboxChatScreen() {
 
   const topPadding = Math.max(spacing.screenPaddingX, insets.top + spacing.screenPaddingX);
   const bottomPadding = Math.max(24, insets.bottom + 8);
+
+  useEffect(() => {
+    track("conversation_ouverte");
+  }, []);
 
   const refreshThread = useCallback(async () => {
     if (!id) {

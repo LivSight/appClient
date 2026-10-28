@@ -1,11 +1,3 @@
-jest.mock("@/lib/api/client", () => ({
-  apiFetch: jest.fn(),
-}));
-
-jest.mock("@/lib/auth/currentUser", () => ({
-  getCurrentUserId: jest.fn(),
-}));
-
 import { apiFetch } from "@/lib/api/client";
 import { getCurrentUserId } from "@/lib/auth/currentUser";
 import {
@@ -14,6 +6,14 @@ import {
   makeClientId,
   type Package,
 } from "@/lib/api/packages";
+
+jest.mock("@/lib/api/client", () => ({
+  apiFetch: jest.fn(),
+}));
+
+jest.mock("@/lib/auth/currentUser", () => ({
+  getCurrentUserId: jest.fn(),
+}));
 
 const API_BASE = "http://localhost:4040";
 
@@ -31,22 +31,22 @@ function mockApiResponse(status: number, body: unknown) {
 
 describe("makeClientId", () => {
   it("is stable for the same input", () => {
-    const a: Package = { package_name: "Farine", description: "Bio", quantity: 5, user_id: 3 };
-    const b: Package = { package_name: "Farine", description: "Bio", quantity: 5, user_id: 3 };
+    const a: Package = { package_name: "Farine", description: "Bio", quantity: 5, defective_quantity: 0, user_id: 3 };
+    const b: Package = { package_name: "Farine", description: "Bio", quantity: 5, defective_quantity: 0, user_id: 3 };
     expect(makeClientId(a)).toBe(makeClientId(b));
   });
 
   it("differs across different (user_id, package_name) pairs", () => {
-    const a: Package = { package_name: "Farine", description: "", quantity: 1, user_id: 3 };
-    const b: Package = { package_name: "Sucre", description: "", quantity: 1, user_id: 3 };
-    const c: Package = { package_name: "Farine", description: "", quantity: 1, user_id: 5 };
+    const a: Package = { package_name: "Farine", description: "", quantity: 1, defective_quantity: 0, user_id: 3 };
+    const b: Package = { package_name: "Sucre", description: "", quantity: 1, defective_quantity: 0, user_id: 3 };
+    const c: Package = { package_name: "Farine", description: "", quantity: 1, defective_quantity: 0, user_id: 5 };
     expect(makeClientId(a)).not.toBe(makeClientId(b));
     expect(makeClientId(a)).not.toBe(makeClientId(c));
   });
 
   it("does not change when quantity changes (so React keys stay stable)", () => {
-    const before: Package = { package_name: "Farine", description: "Bio", quantity: 1, user_id: 3 };
-    const after: Package = { package_name: "Farine", description: "Bio", quantity: 99, user_id: 3 };
+    const before: Package = { package_name: "Farine", description: "Bio", quantity: 1, defective_quantity: 0, user_id: 3 };
+    const after: Package = { package_name: "Farine", description: "Bio", quantity: 99, defective_quantity: 0, user_id: 3 };
     expect(makeClientId(before)).toBe(makeClientId(after));
   });
 });
@@ -170,6 +170,43 @@ describe("packages API", () => {
       expect(mockApiFetch).toHaveBeenCalledWith(`${API_BASE}/api/packages`, { method: "GET" });
       expect(result).toHaveLength(2);
       expect(result.map((p) => p.package_name).sort()).toEqual(["Mine A", "Mine B"]);
+    });
+
+    it("preserves defective_quantity from the API (defaults missing to 0)", async () => {
+      mockApiResponse(200, [
+        {
+          id: 10,
+          package_name: "Farine",
+          description: "a",
+          quantity: 5,
+          defective_quantity: 2,
+          user_id: 3,
+        },
+        {
+          package_name: "Sucre",
+          description: "b",
+          quantity: 1,
+          user_id: 3,
+        },
+      ]);
+
+      const result = await listPackages();
+
+      expect(result).toEqual([
+        expect.objectContaining({
+          id: 10,
+          package_name: "Farine",
+          quantity: 5,
+          defective_quantity: 2,
+          user_id: 3,
+        }),
+        expect.objectContaining({
+          package_name: "Sucre",
+          quantity: 1,
+          defective_quantity: 0,
+          user_id: 3,
+        }),
+      ]);
     });
 
     it("parses the {data: []} envelope shape", async () => {

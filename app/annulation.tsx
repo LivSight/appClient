@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
+import { track } from "@/lib/analytics/events";
 import { useLoadEffect } from "@/lib/hooks/useLoadEffect";
-import { Alert, Platform, Pressable, View } from "react-native";
+import { Alert, Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import ScreenLayout from "@/components/ScreenLayout";
 import AppText from "@/components/AppText";
@@ -13,6 +14,7 @@ import {
   getTransactionById,
 } from "@/lib/api/transactions";
 import { hapticSuccess } from "@/lib/haptics";
+import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 import { colors, fonts, radii, shadows, spacing, typography } from "@/theme/tokens";
 
 type ReasonId = "unreachable" | "damaged" | "changed_mind" | "other";
@@ -92,11 +94,11 @@ export default function AnnulationScreen() {
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [cancelAllowed, setCancelAllowed] = useState(false);
 
-  const checkCancelEligibility = useCallback(async () => {
+  const checkCancelEligibility = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     const deliveryId = typeof id === "string" ? id.trim() : "";
     if (!deliveryId) {
       Alert.alert("Erreur", "Identifiant de livraison manquant.", [{ text: "OK", onPress: () => router.back() }]);
-      setCheckingStatus(false);
+      if (mode === "initial") setCheckingStatus(false);
       return;
     }
 
@@ -104,16 +106,20 @@ export default function AnnulationScreen() {
       const tx = await getTransactionById(deliveryId);
       const allowed = canClientCancelTransaction(tx.status);
       setCancelAllowed(allowed);
-      if (!allowed) {
+      if (!allowed && mode === "initial") {
         Alert.alert("Annulation impossible", CLIENT_CANCEL_BLOCKED_MESSAGE, [{ text: "OK", onPress: () => router.back() }]);
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Impossible de charger cette livraison.";
-      Alert.alert("Erreur", message, [{ text: "OK", onPress: () => router.back() }]);
+      if (mode === "initial") {
+        Alert.alert("Erreur", message, [{ text: "OK", onPress: () => router.back() }]);
+      }
     } finally {
-      setCheckingStatus(false);
+      if (mode === "initial") setCheckingStatus(false);
     }
   }, [id]);
+
+  const { refreshing, onRefresh } = usePullToRefresh(() => checkCancelEligibility("refresh"));
 
   useLoadEffect(checkCancelEligibility);
 
@@ -125,6 +131,8 @@ export default function AnnulationScreen() {
 
   return (
     <ScreenLayout
+      refreshing={refreshing}
+      onRefresh={onRefresh}
       header={
         <View style={{ paddingBottom: 6 }}>
           <View style={{ flexDirection: "row", alignItems: "center", minHeight: 44 }}>
@@ -169,6 +177,7 @@ export default function AnnulationScreen() {
                     reason: reasonLabel,
                     details: details.trim() || undefined,
                   });
+                  track("annulation_demandee", { raison: reasonLabel });
                   router.replace({
                     pathname: "/annulation-confirmee",
                     params: { id: deliveryId },

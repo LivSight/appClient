@@ -7,6 +7,7 @@ import {
   fetchSettlementReport,
   sourceCountsFromDeliveries,
   statusBucketsFromSummary,
+  statusChipsFromSummary,
   toReportDateParam,
 } from "@/lib/api/reports";
 
@@ -61,6 +62,39 @@ describe("statusBucketsFromSummary", () => {
   it("handles empty or missing summaries", () => {
     expect(statusBucketsFromSummary(undefined)).toEqual({ delivered: 0, injoignable: 0, annule: 0, enCours: 0 });
     expect(statusBucketsFromSummary([])).toEqual({ delivered: 0, injoignable: 0, annule: 0, enCours: 0 });
+  });
+});
+
+describe("statusChipsFromSummary", () => {
+  it("always starts with the four primary buckets", () => {
+    const chips = statusChipsFromSummary([{ status: "completed", count: 2 }]);
+    expect(chips.slice(0, 4).map((c) => c.label)).toEqual([
+      "En cours",
+      "Livré",
+      "Injoignable",
+      "Annulé",
+    ]);
+    expect(chips[1].count).toBe(2);
+    expect(chips).toHaveLength(4);
+  });
+
+  it("appends other statuses that have a positive count", () => {
+    const chips = statusChipsFromSummary([
+      { status: "completed", count: 1 },
+      { status: "scheduled", count: 2 },
+      { status: "client_absent", count: 1 },
+      { status: "pending", count: 0 },
+      { status: "unreachable", count: 1 },
+    ]);
+    expect(chips.map((c) => c.label)).toEqual([
+      "En cours",
+      "Livré",
+      "Injoignable",
+      "Annulé",
+      "Planifiée",
+      "Client absent",
+    ]);
+    expect(chips.find((c) => c.label === "Planifiée")?.count).toBe(2);
   });
 });
 

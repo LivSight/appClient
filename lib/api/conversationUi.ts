@@ -2,6 +2,7 @@ import type { TransactionCardItem } from "@/components/TransactionCard";
 import { getTransactionNavigationId, type Transaction } from "@/lib/api/transactions";
 import type { TicketInboxItem, TicketMessage, TicketResponse } from "@/lib/api/tickets";
 import { formatTransactionRef, isExpeditionType } from "@/lib/api/transactionUi";
+import { formatDbText } from "@/lib/formatDisplayText";
 
 export type UnreadState = {
   isUnread: boolean;
@@ -95,8 +96,8 @@ export function mapConversationToTransactionCardItem(item: ConversationItem): Tr
 
 function productTitleFromTransaction(tx: Transaction): string {
   const qty = Number.isFinite(Number(tx.quantity)) ? Math.max(1, Math.floor(Number(tx.quantity))) : 1;
-  const titleBase = String(tx.package_name ?? "Colis").trim() || "Colis";
-  return qty > 1 && !titleBase.includes("x") ? `${titleBase} x${qty}` : titleBase;
+  const titleBase = formatDbText(tx.package_name) || "Colis";
+  return qty > 1 && !titleBase.toLowerCase().includes("x") ? `${titleBase} x${qty}` : titleBase;
 }
 
 function quartierFromTransaction(tx: Transaction): string {
@@ -105,11 +106,11 @@ function quartierFromTransaction(tx: Transaction): string {
       ? tx.destination.street
       : String(tx.destination_street ?? "").trim();
   const fromStreet = street.split("—")[0]?.trim() || street.trim();
-  return fromStreet.length ? fromStreet : "—";
+  return fromStreet.length ? formatDbText(fromStreet) : "—";
 }
 
 function messagePreviewFromTransaction(tx: Transaction, title: string): string {
-  const description = String(tx.description ?? "").trim();
+  const description = formatDbText(tx.description);
   if (description.length && description.toLowerCase() !== title.toLowerCase()) {
     return description;
   }
@@ -138,9 +139,9 @@ export function mapTransactionToConversationItem(tx: Transaction): ConversationI
   const subtitle = messagePreviewFromTransaction(tx, title);
 
   if (isExpeditionType(tx.type)) {
-    const from = tx.departure?.city?.trim() || "—";
-    const to = tx.destination?.city?.trim() || "—";
-    const agence = tx.departure?.region?.trim() || "";
+    const from = formatDbText(tx.departure?.city) || "—";
+    const to = formatDbText(tx.destination?.city) || "—";
+    const agence = formatDbText(tx.departure?.region);
     const trajet = `${from} → ${to}`;
     return {
       id,
@@ -181,13 +182,18 @@ export function mapInboxItemToConversationItem(item: TicketInboxItem): Conversat
     id,
     refLabel: `REF: ${ref}`,
     timeLabel: "—",
-    title: tx.packageName ?? "Colis",
+    title: formatDbText(tx.packageName) || "Colis",
     amountXaf: tx.amountDue,
     subtitle: "",
   };
 
   if (isExpeditionType(tx.type ?? undefined)) {
-    const trajet = tx.routeLabel ?? [tx.departureLabel, tx.destinationLabel].filter(Boolean).join(" → ");
+    const trajet =
+      formatDbText(tx.routeLabel) ||
+      [tx.departureLabel, tx.destinationLabel]
+        .map((part) => formatDbText(part))
+        .filter(Boolean)
+        .join(" → ");
     return {
       ...base,
       type: "expedition",
@@ -198,7 +204,7 @@ export function mapInboxItemToConversationItem(item: TicketInboxItem): Conversat
   return {
     ...base,
     type: "livraison",
-    locationLine: tx.neighborhoodLabel ?? undefined,
+    locationLine: formatDbText(tx.neighborhoodLabel) || undefined,
   };
 }
 

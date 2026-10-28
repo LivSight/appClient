@@ -120,13 +120,13 @@ describe("ProfileScreen", () => {
     alertSpy.mockRestore();
   });
 
-  it("shows name, email, and initials after load", async () => {
+  it("shows name, email, and avatar after load", async () => {
     const screen = renderProfile();
 
     await waitFor(() => {
       expect(screen.getByText("Snake User")).toBeTruthy();
       expect(screen.getByText("snake123@example.com")).toBeTruthy();
-      expect(screen.getByText("SU")).toBeTruthy();
+      expect(screen.getByTestId("profile-avatar")).toBeTruthy();
     });
   });
 

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { View, Pressable, RefreshControl } from "react-native";
+import { View, Pressable } from "react-native";
 import { router } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import AppText from "@/components/AppText";
@@ -14,7 +14,7 @@ import { conversationSearchText, mapConversationToTransactionCardItem } from "@/
 import { loadConversationList } from "@/lib/api/inbox";
 import { type EnrichedConversationItem } from "@/lib/api/ticketUi";
 import {
-  dateFilterStartMs,
+  getDateFilterBounds,
   TRANSACTION_DATE_FILTERS,
   type TransactionDateFilter,
 } from "@/lib/api/transactionUi";
@@ -34,10 +34,10 @@ function matchesStatusFilter(c: EnrichedConversationItem, filter: ConversationSt
 }
 
 function matchesDateFilter(c: EnrichedConversationItem, filter: TransactionDateFilter): boolean {
-  const start = dateFilterStartMs(filter);
-  if (start == null) return true;
+  const bounds = getDateFilterBounds(filter);
+  if (bounds == null) return true;
   const activityMs = Date.parse(String(c.lastActivityAt ?? ""));
-  return Number.isFinite(activityMs) && activityMs >= start;
+  return Number.isFinite(activityMs) && activityMs >= bounds.start && activityMs <= bounds.end;
 }
 
 export default function ConversationsScreen() {
@@ -96,17 +96,9 @@ export default function ConversationsScreen() {
 
   return (
     <ScreenLayout
-      scrollViewProps={{
-        refreshControl: (
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              void loadConversations("refresh");
-            }}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        ),
+      refreshing={refreshing}
+      onRefresh={() => {
+        void loadConversations("refresh");
       }}
       header={
         <View style={{ paddingBottom: 14 }}>

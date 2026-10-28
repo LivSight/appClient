@@ -15,8 +15,10 @@ import AppText from "../../components/AppText";
 import { getTransactionById, getTransactionNavigationId, mapTxnStatusToUi, type Transaction } from "@/lib/api/transactions";
 import { scheduledDeliveryLabelFromTransaction } from "@/lib/api/transactionUi";
 import { formatScheduledDeliveryLabel } from "@/lib/scheduling/deliveryDate";
+import { formatDbText } from "@/lib/formatDisplayText";
 import { isTransactionPushType, matchesOpenTransaction } from "@/lib/push/notificationRouting";
 import { usePushRefresh } from "@/lib/push/usePushRefresh";
+import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 
 type Expedition = {
   id: string;
@@ -54,7 +56,7 @@ function mapTransactionToExpedition(tx: Transaction): Expedition {
   const receiverPhone =
     (typeof tx.receiver_phone === "string" && tx.receiver_phone.trim().length ? tx.receiver_phone.trim() : "") ||
     (typeof tx.receiverData?.phone === "string" ? tx.receiverData.phone.trim() : "");
-  const receiverName = typeof tx.receiver_name === "string" && tx.receiver_name.trim().length ? tx.receiver_name.trim() : null;
+  const receiverName = typeof tx.receiver_name === "string" && tx.receiver_name.trim().length ? formatDbText(tx.receiver_name) : null;
   const amount = Number(tx.amount ?? 0);
   const collectCash = typeof tx.cash_collect === "boolean" ? tx.cash_collect : typeof tx.collect_cash === "boolean" ? tx.collect_cash : amount > 0;
   const express = Boolean(tx.express);
@@ -72,10 +74,10 @@ function mapTransactionToExpedition(tx: Transaction): Expedition {
     collectCash,
     amountXaf: Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 0,
     express,
-    departureCity: departureCity.trim().length ? departureCity.trim() : null,
-    departureStreet: departureStreet.trim().length ? departureStreet.trim() : null,
-    destinationCity: destinationCity.trim().length ? destinationCity.trim() : null,
-    destinationStreet: destinationStreet.trim().length ? destinationStreet.trim() : null,
+    departureCity: formatDbText(departureCity) || null,
+    departureStreet: formatDbText(departureStreet) || null,
+    destinationCity: formatDbText(destinationCity) || null,
+    destinationStreet: formatDbText(destinationStreet) || null,
     created_at: typeof tx.created_at === "string" ? tx.created_at : undefined,
   };
 }
@@ -86,10 +88,10 @@ export default function ExpeditionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const loadExpedition = useCallback(async () => {
+  const loadExpedition = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     if (!id) return;
     try {
-      setLoading(true);
+      if (mode === "initial") setLoading(true);
       setLoadError(null);
       const data = await getTransactionById(String(id));
       setTx(data);
@@ -97,9 +99,11 @@ export default function ExpeditionDetailScreen() {
       setTx(null);
       setLoadError(String(e instanceof Error ? e.message : e ?? "Impossible de charger l'expédition."));
     } finally {
-      setLoading(false);
+      if (mode === "initial") setLoading(false);
     }
   }, [id]);
+
+  const { refreshing, onRefresh } = usePullToRefresh(() => loadExpedition("refresh"));
 
   useLoadEffect(loadExpedition);
 
@@ -154,6 +158,8 @@ export default function ExpeditionDetailScreen() {
 
   return (
     <ScreenLayout
+      refreshing={refreshing}
+      onRefresh={onRefresh}
       header={
         <LivraisonDetailHeader
           referenceLabel={referenceTitle}
@@ -163,7 +169,7 @@ export default function ExpeditionDetailScreen() {
       {!expedition ? (
         <View style={{ paddingVertical: 16 }}>
           <AppText style={{ color: "#D32F2F", fontFamily: fonts.bodySemi, marginBottom: 12 }}>
-            {loading ? "Chargement…" : loadError ? loadError : "Expédition introuvable"}
+            {loading && !refreshing ? "Chargement…" : loadError ? loadError : "Expédition introuvable"}
           </AppText>
           {!loading && loadError ? (
             <Pressable
@@ -278,30 +284,6 @@ export default function ExpeditionDetailScreen() {
               ]}
               showCollectCashBadge={expedition.collectCash}
             />
-
-            <Pressable
-              onPress={() => {
-                if (!expedition?.id) return;
-                void hapticLight();
-                router.push({ pathname: "/inbox/[id]", params: { id: String(expedition.id), intent: "report" } });
-              }}
-              style={{
-                minHeight: 56,
-                borderRadius: radii.pill,
-                backgroundColor: "#E5E7EB",
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "row",
-                gap: 10,
-                paddingVertical: 14,
-              }}
-              hitSlop={10}
-            >
-              <SolarIcon name="solar:dialog-bold" size={24} color={colors.text} />
-              <AppText style={{ ...typography.bodyRegular, fontFamily: fonts.bodyBold }} numberOfLines={2} ellipsizeMode="tail">
-                Signaler un problème
-              </AppText>
-            </Pressable>
 
             <Pressable
               onPress={() => Alert.alert("Reçu PDF", "Télécharger le reçu (UI-only).")}

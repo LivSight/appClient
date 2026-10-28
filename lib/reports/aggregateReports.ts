@@ -1,6 +1,79 @@
 import type { Package } from "@/lib/api/packages";
 
-export type ReportRange = "Journalier" | "Hebdo" | "Mensuel" | "Personnalisé";
+export type ReportRange = "Journalier" | "Hier" | "Hebdo" | "Mensuel" | "Personnalisé";
+
+export function dateRangeLabel(range: ReportRange): string {
+  switch (range) {
+    case "Journalier":
+      return "Aujourd'hui";
+    case "Hier":
+      return "Hier";
+    case "Hebdo":
+      return "Cette semaine";
+    case "Mensuel":
+      return "Ce mois";
+    case "Personnalisé":
+      return "Personnalisé";
+  }
+}
+
+/** Period qualifier for PDF CTA labels (“Visualiser mon rapport …”). */
+export function reportPeriodQualifier(range: ReportRange): string {
+  switch (range) {
+    case "Journalier":
+      return "journalier";
+    case "Hier":
+      return "d'hier";
+    case "Hebdo":
+      return "hebdomadaire";
+    case "Mensuel":
+      return "mensuel";
+    case "Personnalisé":
+      return "personnalisé";
+  }
+}
+
+/** CTA label for report PDF buttons, driven by the active period filter. */
+export function reportPdfActionLabel(
+  range: ReportRange,
+  kind: "deliveries" | "expeditions",
+): string {
+  const period = reportPeriodQualifier(range);
+  if (kind === "expeditions") {
+    return `Visualiser mon rapport d'expédition ${period}`;
+  }
+  return `Visualiser mon rapport ${period}`;
+}
+
+export type ReportPdfTitleKind = "settlement" | "deliveries" | "expeditions" | "stock";
+
+/** Header title on the PDF preview screen — same naming as the CTA when a period is known. */
+export function reportPdfPreviewTitle(
+  kind: ReportPdfTitleKind,
+  range?: ReportRange | null,
+): string {
+  if (kind === "stock") return "Visualiser mon rapport de stock";
+  if (kind === "settlement") return "Visualiser mon relevé de solde";
+  if (range && (kind === "deliveries" || kind === "expeditions")) {
+    return reportPdfActionLabel(range, kind);
+  }
+  if (kind === "expeditions") return "Visualiser mon rapport d'expédition";
+  return "Visualiser mon rapport";
+}
+
+export function parseReportRangeParam(raw: unknown): ReportRange | null {
+  const s = String(raw ?? "").trim();
+  if (
+    s === "Journalier" ||
+    s === "Hier" ||
+    s === "Hebdo" ||
+    s === "Mensuel" ||
+    s === "Personnalisé"
+  ) {
+    return s;
+  }
+  return null;
+}
 
 export type ReportTransaction = {
   created_at?: string;
@@ -132,7 +205,12 @@ export function resolveReportPeriodBounds(input: {
     }
     return getPeriodBounds("Journalier", input.now);
   }
-  if (input.range === "Journalier" || input.range === "Hebdo" || input.range === "Mensuel") {
+  if (
+    input.range === "Journalier" ||
+    input.range === "Hier" ||
+    input.range === "Hebdo" ||
+    input.range === "Mensuel"
+  ) {
     return getPeriodBounds(input.range, input.now);
   }
   return getPeriodBounds("Journalier", input.now);
@@ -150,6 +228,17 @@ export function getPeriodBounds(
     return {
       current: { start: currentStart, end: currentEnd },
       previous: { start: startOfDay(prevDay), end: endOfDay(prevDay) },
+    };
+  }
+
+  if (range === "Hier") {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dayBefore = new Date(yesterday);
+    dayBefore.setDate(dayBefore.getDate() - 1);
+    return {
+      current: { start: startOfDay(yesterday), end: endOfDay(yesterday) },
+      previous: { start: startOfDay(dayBefore), end: endOfDay(dayBefore) },
     };
   }
 
@@ -337,7 +426,12 @@ export function formatPeriodLabel(
     }
     return `Du ${formatDateLongFr(start)} au ${formatDateLongFr(end)}`;
   }
-  if (range === "Journalier") return `Aujourd’hui — ${formatDateLongFr(now)}`;
+  if (range === "Journalier") return `Aujourd’hui, ${formatDateLongFr(now)}`;
+  if (range === "Hier") {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return `Hier, ${formatDateLongFr(yesterday)}`;
+  }
   if (range === "Mensuel") return formatMonthYearFr(now);
   if (range === "Personnalisé") return "Choisissez une période";
   const start = startOfWeekMonday(now);

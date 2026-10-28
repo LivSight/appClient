@@ -1,8 +1,9 @@
-import { ScrollView, View, type ScrollViewProps } from "react-native";
+import { RefreshControl, View, type ScrollView, type ScrollViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboardInsets } from "@/lib/hooks/useKeyboardVisible";
 import { layout } from "../theme/styles";
 import { colors, spacing } from "../theme/tokens";
+import AppScrollView from "./AppScrollView";
 import HeroGridBackground from "./HeroGridBackground";
 
 type Props = {
@@ -19,6 +20,10 @@ type Props = {
   scrollViewProps?: Omit<ScrollViewProps, "children">;
   /** Optional ref to the internal ScrollView (for scrollTo on deep-links) */
   scrollViewRef?: React.Ref<ScrollView>;
+  /** Pull-to-refresh spinner state (pair with onRefresh) */
+  refreshing?: boolean;
+  /** Pull-to-refresh handler — wires RefreshControl on the ScrollView */
+  onRefresh?: () => void;
 };
 
 /**
@@ -33,6 +38,8 @@ export default function ScreenLayout({
   footer,
   scrollViewProps,
   scrollViewRef,
+  refreshing = false,
+  onRefresh,
 }: Props) {
   const insets = useSafeAreaInsets();
   const { visible: keyboardVisible, height: keyboardHeight } = useKeyboardInsets();
@@ -54,6 +61,17 @@ export default function ScreenLayout({
     ...scrollViewProps,
   };
 
+  if (onRefresh) {
+    scrollViewCommonProps.refreshControl = (
+      <RefreshControl
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        tintColor={colors.primary}
+        colors={[colors.primary]}
+      />
+    );
+  }
+
   if (header) {
     return (
       <View style={[layout.screen, { backgroundColor: background }]}>
@@ -67,7 +85,7 @@ export default function ScreenLayout({
         >
           {header}
         </View>
-        <ScrollView
+        <AppScrollView
           {...scrollViewCommonProps}
           style={{ flex: 1 }}
           contentContainerStyle={{
@@ -77,7 +95,7 @@ export default function ScreenLayout({
           }}
         >
           {children}
-        </ScrollView>
+        </AppScrollView>
         {showFooter ? footer : null}
       </View>
     );
@@ -101,22 +119,22 @@ export default function ScreenLayout({
     return (
       <View style={[layout.screen, { backgroundColor: background }]}>
         <HeroGridBackground />
-        <ScrollView {...scrollViewCommonProps} style={{ flex: 1 }} contentContainerStyle={contentStyle}>
+        <AppScrollView {...scrollViewCommonProps} style={{ flex: 1 }} contentContainerStyle={contentStyle}>
           {children}
-        </ScrollView>
+        </AppScrollView>
         {showFooter ? footer : null}
       </View>
     );
   }
 
   return (
-    <ScrollView
+    <AppScrollView
       {...scrollViewCommonProps}
       style={[layout.screen, { backgroundColor: background }]}
       contentContainerStyle={contentStyle}
     >
       <HeroGridBackground />
       {children}
-    </ScrollView>
+    </AppScrollView>
   );
 }

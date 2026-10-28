@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import LoadingState from "@/components/LoadingState";
+import { Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { track } from "@/lib/analytics/events";
 import { useFocusEffect } from "expo-router/react-navigation";
 import AppText from "@/components/AppText";
 import EmptyStateCard from "@/components/EmptyStateCard";
@@ -27,6 +29,10 @@ export default function TarifsZoneDetailScreen() {
     const parsed = parseInt(String(zone ?? ""), 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }, [zone]);
+
+  useEffect(() => {
+    if (zoneIdNum != null) track("tarif_zone_consulte", { zone: String(zoneIdNum) });
+  }, [zoneIdNum]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -75,12 +81,7 @@ export default function TarifsZoneDetailScreen() {
   const sectorsLabel = `${neighborhoodNames.length} SECTEUR${neighborhoodNames.length === 1 ? "" : "S"}`;
 
   const body = loading ? (
-    <View style={{ paddingVertical: 48, alignItems: "center" }}>
-      <ActivityIndicator size="large" color={colors.primary} />
-      <AppText style={{ ...typography.subtitle, marginTop: 12 }} numberOfLines={2}>
-        Chargement de la zone…
-      </AppText>
-    </View>
+    <LoadingState label="Chargement de la zone…" />
   ) : error ? (
     <View style={{ marginTop: 18, padding: 16, backgroundColor: colors.cardBg, borderRadius: radii.card }}>
       <AppText style={typography.bodyRegular} numberOfLines={4}>
@@ -169,9 +170,8 @@ export default function TarifsZoneDetailScreen() {
 
   return (
     <ScreenLayout
-      scrollViewProps={{
-        refreshControl: <RefreshControl refreshing={refreshing} onRefresh={() => void loadZone("refresh")} />,
-      }}
+      refreshing={refreshing}
+      onRefresh={() => void loadZone("refresh")}
       header={
         <View style={{ flexDirection: "row", alignItems: "center", minHeight: 44, paddingVertical: 8, marginBottom: 12 }}>
           <Pressable onPress={() => router.back()} hitSlop={10} style={{ width: 44, height: 44, justifyContent: "center" }}>

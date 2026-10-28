@@ -1,10 +1,11 @@
 import type { User } from "@/lib/api/users";
+import { formatDbText } from "@/lib/formatDisplayText";
 
 export function displayFullName(user: User | null | undefined): string {
-  const name = String(user?.name ?? "").trim();
+  const name = formatDbText(user?.name);
   if (name) return name;
-  const first = String(user?.first_name ?? "").trim();
-  const last = String(user?.last_name ?? "").trim();
+  const first = formatDbText(user?.first_name);
+  const last = formatDbText(user?.last_name);
   const both = `${first} ${last}`.trim();
   return both || "—";
 }

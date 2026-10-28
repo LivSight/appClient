@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
-import { View, Pressable, RefreshControl } from "react-native";
+import LoadingState from "@/components/LoadingState";
+import { track } from "@/lib/analytics/events";
+import { View, Pressable } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import EmptyStateCard from "../../components/EmptyStateCard";
@@ -79,17 +81,9 @@ export default function LivraisonScreen() {
 
   return (
     <ScreenLayout
-      scrollViewProps={{
-        refreshControl: (
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              void loadTransactions("refresh");
-            }}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        ),
+      refreshing={refreshing}
+      onRefresh={() => {
+        void loadTransactions("refresh");
       }}
       header={
         <View style={{ paddingBottom: 10 }}>
@@ -110,7 +104,10 @@ export default function LivraisonScreen() {
             value={active}
             options={["Tout", "Planifiée", "En cours", "Livré", "Annulé"] as const}
             defaultValue="Tout"
-            onSelect={setActive}
+            onSelect={(next) => {
+              setActive(next);
+              track("courses_filtrees", { filtre_statut: next, filtre_periode: dateFilter });
+            }}
           />
           <FilterDropdown<TransactionDateFilter>
             title="Période"
@@ -118,7 +115,10 @@ export default function LivraisonScreen() {
             value={dateFilter}
             options={TRANSACTION_DATE_FILTERS}
             defaultValue="Toutes dates"
-            onSelect={setDateFilter}
+            onSelect={(next) => {
+              setDateFilter(next);
+              track("courses_filtrees", { filtre_statut: active, filtre_periode: next });
+            }}
           />
         </View>
       ) : null}
@@ -145,9 +145,7 @@ export default function LivraisonScreen() {
 
       {loading && !refreshing ? (
         <View style={{ marginTop: 6, borderRadius: radii.card, backgroundColor: colors.white, padding: 20 }}>
-          <AppText style={{ ...typography.cardTitle, fontSize: 16, lineHeight: 24 }} numberOfLines={2}>
-            Chargement…
-          </AppText>
+          <LoadingState />
         </View>
       ) : error ? (
         <View style={{ marginTop: 6, borderRadius: radii.card, backgroundColor: colors.white, padding: 20 }}>

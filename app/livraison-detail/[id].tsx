@@ -14,9 +14,11 @@ import { hapticLight } from "@/lib/haptics";
 import AppText from "../../components/AppText";
 import { getTransactionById, getTransactionNavigationId, canClientCancelTransaction, CLIENT_CANCEL_BLOCKED_MESSAGE, mapTxnStatusToUi, type Transaction } from "@/lib/api/transactions";
 import { formatScheduledDeliveryLabel } from "@/lib/scheduling/deliveryDate";
+import { formatDbText } from "@/lib/formatDisplayText";
 import { isTransactionPushType, matchesOpenTransaction } from "@/lib/push/notificationRouting";
 import { logger } from "@/lib/logger";
 import { usePushRefresh } from "@/lib/push/usePushRefresh";
+import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 
 const WARNING_AMBER = "#F59E0B";
 
@@ -60,12 +62,12 @@ function mapTransactionToDelivery(tx: Transaction): Delivery {
     (typeof tx.receiver_phone === "string" && tx.receiver_phone.trim().length ? tx.receiver_phone.trim() : "") ||
     (typeof tx.receiverData?.phone === "string" ? tx.receiverData.phone.trim() : "");
   const qty = Number.isFinite(Number(tx.quantity)) ? Math.max(1, Math.floor(Number(tx.quantity))) : 1;
-  const packageName = String(tx.package_name ?? "Colis");
+  const packageName = formatDbText(tx.package_name) || "Colis";
   const lineItems: DeliveryItem[] = Array.isArray(tx.items)
     ? tx.items
         .filter((it) => String(it?.package_name ?? "").trim().length)
         .map((it) => ({
-          name: String(it.package_name).trim(),
+          name: formatDbText(it.package_name),
           qty: Number.isFinite(Number(it.quantity)) ? Math.max(1, Math.floor(Number(it.quantity))) : 1,
         }))
     : [];
@@ -75,11 +77,13 @@ function mapTransactionToDelivery(tx: Transaction): Delivery {
   const mode: DeliveryMode = tx.mode === "pickup" ? "pickup" : "stock";
   const pickupAddress =
     mode === "pickup"
-      ? (typeof tx.departure?.street === "string" && tx.departure.street.trim().length
-          ? tx.departure.street.trim()
-          : typeof tx.departure_street === "string"
-            ? tx.departure_street
-            : null)
+      ? formatDbText(
+          typeof tx.departure?.street === "string" && tx.departure.street.trim().length
+            ? tx.departure.street
+            : typeof tx.departure_street === "string"
+              ? tx.departure_street
+              : "",
+        ) || null
       : null;
   const destinationStreet =
     typeof tx.destination?.street === "string" && tx.destination.street.trim().length
@@ -87,8 +91,8 @@ function mapTransactionToDelivery(tx: Transaction): Delivery {
       : typeof tx.destination_street === "string"
         ? tx.destination_street.trim()
         : "";
-  const deliveryAddress = destinationStreet.length ? destinationStreet : null;
-  const notes = typeof tx.description === "string" ? tx.description : null;
+  const deliveryAddress = destinationStreet.length ? formatDbText(destinationStreet) : null;
+  const notes = typeof tx.description === "string" ? formatDbText(tx.description) || null : null;
   const amount = Number(tx.amount ?? 0);
   // Only the API's explicit flag counts — a positive amount alone is not proof of cash collection.
   const collectCash = tx.cash_collect === true || tx.collect_cash === true;
@@ -245,7 +249,7 @@ export default function LivraisonDetailScreen() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const loadDelivery = useCallback(async () => {
+  const loadDelivery = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     if (!id) {
       setDelivery(null);
       setLoadError(null);
@@ -253,7 +257,7 @@ export default function LivraisonDetailScreen() {
     }
 
     try {
-      setLoading(true);
+      if (mode === "initial") setLoading(true);
       setLoadError(null);
       const tx = await getTransactionById(String(id));
       setDelivery(mapTransactionToDelivery(tx));
@@ -262,9 +266,11 @@ export default function LivraisonDetailScreen() {
       setDelivery(null);
       setLoadError("Impossible de charger la livraison. Vérifiez votre connexion et réessayez.");
     } finally {
-      setLoading(false);
+      if (mode === "initial") setLoading(false);
     }
   }, [id]);
+
+  const { refreshing, onRefresh } = usePullToRefresh(() => loadDelivery("refresh"));
 
   useLoadEffect(loadDelivery);
 
@@ -328,6 +334,8 @@ export default function LivraisonDetailScreen() {
 
   return (
     <ScreenLayout
+      refreshing={refreshing}
+      onRefresh={onRefresh}
       header={
         <LivraisonDetailHeader
           referenceLabel={referenceTitle}
@@ -338,7 +346,7 @@ export default function LivraisonDetailScreen() {
       {!delivery ? (
         <View style={{ paddingVertical: 16 }}>
           <AppText style={{ color: "#D32F2F", fontFamily: fonts.bodySemi, marginBottom: 12 }}>
-            {loading ? "Chargement…" : loadError ? loadError : "Livraison introuvable"}
+            {loading && !refreshing ? "Chargement…" : loadError ? loadError : "Livraison introuvable"}
           </AppText>
           {!loading && loadError ? (
             <Pressable
@@ -504,31 +512,6 @@ export default function LivraisonDetailScreen() {
           {/* Client */}
           <View style={{ marginTop: 16 }}>
             <RecipientCard phone={delivery.phone} />
-          </View>
-
-          <View style={{ marginTop: 16 }}>
-            <Pressable
-              onPress={() => {
-                if (!delivery?.id) return;
-                void hapticLight();
-                router.push({ pathname: "/inbox/[id]", params: { id: String(delivery.id), intent: "report" } });
-              }}
-              style={{
-                minHeight: 56,
-                borderRadius: radii.pill,
-                backgroundColor: "#E5E7EB",
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "row",
-                gap: 10,
-                paddingVertical: 14,
-              }}
-            >
-              <SolarIcon name="solar:dialog-bold" size={24} color={colors.text} />
-              <AppText style={{ ...typography.bodyRegular, fontFamily: fonts.bodyBold }} numberOfLines={2} ellipsizeMode="tail">
-                Signaler un problème
-              </AppText>
-            </Pressable>
           </View>
 
           {/* Summary & details */}

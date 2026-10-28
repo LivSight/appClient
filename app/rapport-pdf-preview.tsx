@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import LoadingState from "@/components/LoadingState";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { track } from "@/lib/analytics/events";
+import { errorLabel } from "@/lib/analytics/mappers";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "../components/AppText";
 import CenteredScreenHeader from "../components/CenteredScreenHeader";
@@ -14,16 +17,10 @@ import {
   shareCachedReportPdf,
   type CachedReportPdf,
 } from "@/lib/reports/reportPdf";
+import { parseReportRangeParam, reportPdfPreviewTitle } from "@/lib/reports/aggregateReports";
 import { logger } from "@/lib/logger";
 
 const PdfWebView = getWebViewComponent();
-
-const TITLES: Record<ReportKind, string> = {
-  settlement: "Relevé de solde",
-  deliveries: "Rapport livraisons",
-  expeditions: "Rapport expéditions",
-  stock: "Rapport stock",
-};
 
 function resolveKind(raw: unknown): ReportKind {
   const s = String(raw ?? "").trim();
@@ -100,10 +97,12 @@ function buildPdfPreviewHtml(base64: string): string {
 }
 
 export default function RapportPdfPreviewScreen() {
-  const params = useLocalSearchParams<{ kind?: string; start?: string; end?: string }>();
+  const params = useLocalSearchParams<{ kind?: string; start?: string; end?: string; range?: string }>();
   const kind = resolveKind(params.kind);
   const start = typeof params.start === "string" ? params.start : "";
   const end = typeof params.end === "string" ? params.end : "";
+  const range = parseReportRangeParam(params.range);
+  const title = reportPdfPreviewTitle(kind, range);
   const insets = useSafeAreaInsets();
 
   const [pdf, setPdf] = useState<CachedReportPdf | null>(null);
@@ -119,10 +118,12 @@ export default function RapportPdfPreviewScreen() {
         const cached = await downloadReportPdfToCache(kind, start, end);
         const base64 = await readReportPdfBase64(cached.fileUri);
         if (!mounted) return;
+        track("rapport_visualise", { type_rapport: kind, periode: range ?? "inconnue" });
         setPdf(cached);
         setHtml(buildPdfPreviewHtml(base64));
       } catch (e: unknown) {
         if (!mounted) return;
+        track("document_echec", { type_rapport: kind, erreur: errorLabel(e) });
         logger.warn("reports", "pdf preview load failed", e);
         setError(
           e instanceof Error && e.message.trim().length
@@ -134,7 +135,7 @@ export default function RapportPdfPreviewScreen() {
     return () => {
       mounted = false;
     };
-  }, [kind, start, end, attempt]);
+  }, [kind, start, end, range, attempt]);
 
   const retry = useCallback(() => {
     setError(null);
@@ -148,7 +149,9 @@ export default function RapportPdfPreviewScreen() {
     setSharing(true);
     try {
       await shareCachedReportPdf(pdf);
+      track("document_telecharge", { type_rapport: kind, periode: range ?? "inconnue", action: "partage" });
     } catch (e: unknown) {
+      track("document_echec", { type_rapport: kind, erreur: errorLabel(e) });
       logger.warn("reports", "pdf share failed", e);
       Alert.alert("Partage impossible", String(e instanceof Error ? e.message : e));
     } finally {
@@ -181,12 +184,7 @@ export default function RapportPdfPreviewScreen() {
       </View>
     </View>
   ) : !html ? (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-      <ActivityIndicator size="large" color={colors.primary} />
-      <AppText style={{ ...typography.subtitle, marginTop: 12 }} numberOfLines={2}>
-        Chargement du rapport…
-      </AppText>
-    </View>
+    <LoadingState fullScreen label="Chargement du rapport…" />
   ) : (
     <View
       style={{
@@ -218,7 +216,7 @@ export default function RapportPdfPreviewScreen() {
     <View style={{ flex: 1, backgroundColor: colors.white, paddingTop: insets.top + 8 }}>
       <View style={{ paddingHorizontal: spacing.screenPaddingX }}>
         <CenteredScreenHeader
-          title={TITLES[kind]}
+          title={title}
           showBack
           compact
           rightSlot={

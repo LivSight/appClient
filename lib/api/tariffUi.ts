@@ -1,4 +1,5 @@
 import type { City, DeliveryFeeSettings, DeliveryFeeZone, Neighborhood, TariffsCatalog } from "@/lib/api/tariffs";
+import { formatDbText } from "@/lib/formatDisplayText";
 
 export type TariffZoneCard = {
   zoneId: string;
@@ -54,8 +55,13 @@ export function zoneDisplayLabel(zone: Pick<DeliveryFeeZone, "sort_order" | "dis
 }
 
 export function cityDisplayLabel(city: City, countryCode = "CM"): string {
-  const name = city.name?.trim() || "Ville";
+  const name = formatDbText(city.name) || "Ville";
   return `${name}, ${countryCode}`;
+}
+
+/** City name only for the Tarifs screen header (e.g. "Yaoundé"). */
+export function cityHeaderLabel(city: City): string {
+  return formatDbText(city.name) || "Ville";
 }
 
 export function pickDefaultCityId(cities: City[]): number | null {
@@ -78,6 +84,85 @@ export function mapZoneToTariffCard(zone: DeliveryFeeZone): TariffZoneCard {
     distanceLabel: distance && distance !== "N/A" ? distance : "—",
     etaLabel: eta && eta !== "N/A" ? eta : "—",
   };
+}
+
+export type TariffNeighborhoodRow = {
+  id: string;
+  neighborhoodName: string;
+  zoneLabel: string;
+  zoneId: string;
+  amountLabel: string;
+};
+
+export type TariffSupplementRow = {
+  id: string;
+  label: string;
+  detail?: string;
+  amountLabel: string;
+};
+
+/** One row per neighborhood in the city's zones, with zone label + zone tariff. */
+export function buildNeighborhoodTariffRows(input: {
+  neighborhoods: readonly Neighborhood[];
+  zones: readonly DeliveryFeeZone[];
+}): TariffNeighborhoodRow[] {
+  const zoneById = new Map(input.zones.map((z) => [z.id, z]));
+  const rows: TariffNeighborhoodRow[] = [];
+
+  for (const n of input.neighborhoods) {
+    const zone = zoneById.get(n.zone_id);
+    if (!zone) continue;
+    const name = formatDbText(n.name);
+    if (!name) continue;
+    rows.push({
+      id: `neighborhood-${n.id}`,
+      neighborhoodName: name,
+      zoneLabel: zoneDisplayLabel(zone),
+      zoneId: String(zone.id),
+      amountLabel: formatTariffAmountLabel(zone.delivery_fee),
+    });
+  }
+
+  return rows.sort((a, b) => a.neighborhoodName.localeCompare(b.neighborhoodName, "fr"));
+}
+
+/** Client-side quartier search (empty query keeps all rows). */
+export function filterNeighborhoodTariffRows(
+  rows: readonly TariffNeighborhoodRow[],
+  query: string,
+): TariffNeighborhoodRow[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [...rows];
+  return rows.filter(
+    (row) =>
+      row.neighborhoodName.toLowerCase().includes(q) ||
+      row.zoneLabel.toLowerCase().includes(q),
+  );
+}
+
+/** Express / pickup supplements shown under the neighborhood table. */
+export function buildTariffSupplementRows(input: {
+  expressFee: number | null;
+  pickupFee: number | null;
+}): TariffSupplementRow[] {
+  const rows: TariffSupplementRow[] = [];
+  if (input.expressFee != null) {
+    rows.push({
+      id: "express",
+      label: "Livraison express",
+      detail: "Sur la zone",
+      amountLabel: formatSupplementFcfaLabel(input.expressFee),
+    });
+  }
+  if (input.pickupFee != null) {
+    rows.push({
+      id: "pickup",
+      label: "Ramassage hors stock",
+      detail: "Si le colis n'est pas en stock",
+      amountLabel: formatSupplementFcfaLabel(input.pickupFee),
+    });
+  }
+  return rows;
 }
 
 function entryFeeLabel(neighborhoods: Neighborhood[]): string {
@@ -137,7 +222,7 @@ export function buildOtherTariffs(
 export function neighborhoodsForZone(neighborhoods: Neighborhood[], zoneId: number): string[] {
   return neighborhoods
     .filter((n) => n.zone_id === zoneId)
-    .map((n) => n.name.trim())
+    .map((n) => formatDbText(n.name))
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, "fr"));
 }
@@ -147,7 +232,7 @@ export function uniqueNeighborhoodNames(neighborhoods: Neighborhood[]): string[]
   const seen = new Set<string>();
   const names: string[] = [];
   for (const n of neighborhoods) {
-    const name = n.name?.trim();
+    const name = formatDbText(n.name);
     if (!name) continue;
     const key = name.toLowerCase();
     if (seen.has(key)) continue;

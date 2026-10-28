@@ -1,10 +1,14 @@
 import {
+  isProductPushType,
   isTransactionPushType,
+  notificationTypeForAnalytics,
   parseClientPushType,
   parseDeliveryIdFromNotificationData,
   parsePushReceivedPayload,
   parseTicketMessageNotificationRoute,
   resolveClientPushRoute,
+  shouldRefreshInAppNotifications,
+  shouldSuppressClientPushPresentation,
 } from "@/lib/push/notificationRouting";
 
 describe("parseDeliveryIdFromNotificationData", () => {
@@ -28,11 +32,54 @@ describe("parseClientPushType", () => {
     expect(parseClientPushType({ type: "ticket_message" })).toBe("ticket_message");
     expect(parseClientPushType({ type: "delivery_rescheduled" })).toBe("delivery_rescheduled");
     expect(parseClientPushType({ type: "delivery_today_reminder" })).toBe("delivery_today_reminder");
+    expect(parseClientPushType({ type: "stock_updated" })).toBe("stock_updated");
+    expect(parseClientPushType({ type: "report_daily_ready" })).toBe("report_daily_ready");
+    expect(parseClientPushType({ type: "report_monthly_ready" })).toBe("report_monthly_ready");
   });
 
   it("returns null for unknown types", () => {
     expect(parseClientPushType({ type: "agency_new_order" })).toBeNull();
     expect(parseClientPushType({})).toBeNull();
+  });
+});
+
+describe("isProductPushType / product routes", () => {
+  it("recognizes product push types", () => {
+    expect(isProductPushType("stock_updated")).toBe(true);
+    expect(isProductPushType("report_monthly_ready")).toBe(true);
+    expect(isProductPushType("ticket_message")).toBe(false);
+  });
+
+  it("routes product pushes to stock / rapports / tarifs / notifications", () => {
+    expect(resolveClientPushRoute({ type: "stock_updated" })).toEqual({ screen: "stock" });
+    expect(resolveClientPushRoute({ type: "report_daily_ready" })).toEqual({
+      screen: "rapports",
+      range: "Journalier",
+    });
+    expect(resolveClientPushRoute({ type: "report_monthly_ready" })).toEqual({
+      screen: "rapports",
+      range: "Mensuel",
+    });
+    expect(resolveClientPushRoute({ type: "promo" })).toEqual({ screen: "tarifs" });
+    expect(resolveClientPushRoute({ type: "general" })).toEqual({ screen: "notifications" });
+  });
+
+  it("shouldRefreshInAppNotifications is true for product pushes", () => {
+    expect(shouldRefreshInAppNotifications({ type: "stock_updated" })).toBe(true);
+    expect(shouldRefreshInAppNotifications({ type: "ticket_message" })).toBe(false);
+  });
+});
+
+describe("shouldSuppressClientPushPresentation", () => {
+  it("silences driver reassignment pushes for now", () => {
+    expect(shouldSuppressClientPushPresentation("driver_reassigned")).toBe(true);
+    expect(shouldSuppressClientPushPresentation({ type: "driver_reassigned" })).toBe(true);
+  });
+
+  it("still shows first driver assignment and other types", () => {
+    expect(shouldSuppressClientPushPresentation("driver_assigned")).toBe(false);
+    expect(shouldSuppressClientPushPresentation("transaction_status_changed")).toBe(false);
+    expect(shouldSuppressClientPushPresentation(undefined)).toBe(false);
   });
 });
 
@@ -138,5 +185,20 @@ describe("parsePushReceivedPayload", () => {
       transactionId: "1001",
       ticketId: undefined,
     });
+  });
+});
+
+describe("notificationTypeForAnalytics", () => {
+  it("returns the type string from the payload", () => {
+    expect(notificationTypeForAnalytics({ type: "transaction_status_changed" })).toBe(
+      "transaction_status_changed",
+    );
+  });
+
+  it("falls back to inconnu for missing or malformed types", () => {
+    expect(notificationTypeForAnalytics(null)).toBe("inconnu");
+    expect(notificationTypeForAnalytics(undefined)).toBe("inconnu");
+    expect(notificationTypeForAnalytics({})).toBe("inconnu");
+    expect(notificationTypeForAnalytics({ type: 42 })).toBe("inconnu");
   });
 });

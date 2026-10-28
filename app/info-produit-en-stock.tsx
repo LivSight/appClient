@@ -9,6 +9,7 @@ import ExpressToggleCard from "../components/ExpressToggleCard";
 import SolarIcon from "../components/SolarIcon";
 import { colors, fonts, radii, typography } from "../theme/tokens";
 import { hapticSuccess } from "@/lib/haptics";
+import { isExpressDeliveryUiEnabled } from "@/lib/config/features";
 import { isExpeditionService, parseExpeditionClient, SERVICE_EXPEDITION } from "@/lib/expeditionClient";
 
 type Params = {
@@ -163,13 +164,14 @@ export default function InfoProduitEnStockScreen() {
           keyboardType="phone-pad"
         />
 
-        {/* Type de livraison */}
-        <View>
-          <AppText variant="dense" style={{ fontSize: 10, lineHeight: 15, fontFamily: fonts.bodyBold, color: "rgba(60,74,60,0.7)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }} numberOfLines={1}>
-            TYPE DE LIVRAISON
-          </AppText>
-          <ExpressToggleCard value={express === "yes"} onChange={(next) => setExpress(next ? "yes" : "no")} supplementXaf={1000} />
-        </View>
+        {isExpressDeliveryUiEnabled() ? (
+          <View>
+            <AppText variant="dense" style={{ fontSize: 10, lineHeight: 15, fontFamily: fonts.bodyBold, color: "rgba(60,74,60,0.7)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }} numberOfLines={1}>
+              TYPE DE LIVRAISON
+            </AppText>
+            <ExpressToggleCard value={express === "yes"} onChange={(next) => setExpress(next ? "yes" : "no")} supplementXaf={1000} />
+          </View>
+        ) : null}
 
         <FormInput
           label="Instructions (optionnel)"
