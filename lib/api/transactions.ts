@@ -123,6 +123,7 @@ function errorMessageFrom(resStatus: number, data: any, rawText: string): string
 
 function normalizeListResponse(data: any): any[] {
   if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
   const inner = data?.data;
   if (Array.isArray(inner)) return inner;
   return [];
@@ -546,31 +547,56 @@ export async function createTransaction(input: TransactionRequest) {
     }
   }
 
-  const refreshed = await listTransactions();
-  return refreshed[refreshed.length - 1] ?? data;
+  const refreshed = await listTransactions({ limit: 1 });
+  return refreshed[0] ?? data;
 }
 
-export async function listTransactions() {
+export type ListTransactionsOptions = {
+  /** Rows per page, newest first — the backend caps it at 200 and defaults to 50. */
+  limit?: number;
+  /** Zero-based page number. */
+  page?: number;
+};
+
+/** Transactions of the signed-in user, newest first (paginated GET /api/transactions?mine=true). */
+export async function listTransactions(options: ListTransactionsOptions = {}) {
+  const t0 = Date.now();
   const sessionUser = await authSession.getSessionUser();
   if (!sessionUser?.keycloakId) {
     throw new Error("Session expirée. Reconnectez-vous pour voir vos livraisons.");
   }
+  const tSession = Date.now();
 
-  const safeKeycloakId = encodeURIComponent(sessionUser.keycloakId.trim());
-  const url = `${API_BASE_URL}/api/users/transactions?keycloakId=${safeKeycloakId}`;
-  logger.info("listTransactions", "GET /api/users/transactions", { url, keycloakId: sessionUser.keycloakId });
+  const query = ["mine=true"];
+  if (options.limit != null) query.push(`limit=${encodeURIComponent(String(options.limit))}`);
+  if (options.page != null) query.push(`page=${encodeURIComponent(String(options.page))}`);
+  const url = `${API_BASE_URL}/api/transactions?${query.join("&")}`;
+  logger.info("listTransactions", "GET /api/transactions", { url, keycloakId: sessionUser.keycloakId });
 
-  const res = await apiFetch(url, { method: "GET" });
+  const res = await apiFetch(url, {
+    method: "GET",
+    headers: { "X-User-Id": sessionUser.keycloakId },
+  });
+  const tFetch = Date.now();
   const rawText = await res.text().catch(() => "");
   const data = parseResponseText(rawText);
 
   if (!res.ok) {
-    logger.info("listTransactions", "GET /api/users/transactions failed", { status: res.status, body: data ?? rawText });
+    logger.info("listTransactions", "GET /api/transactions failed", { status: res.status, body: data ?? rawText });
     throw new Error(errorMessageFrom(res.status, data, rawText));
   }
 
   const all = normalizeListResponse(data);
-  return all.map((t) => parseTransaction(t));
+  const parsed = all.map((t) => parseTransaction(t));
+  logger.info("perf", "listTransactions", {
+    sessionMs: tSession - t0,
+    networkMs: tFetch - tSession,
+    parseMs: Date.now() - tFetch,
+    totalMs: Date.now() - t0,
+    payloadKb: Math.round(rawText.length / 102.4) / 10,
+    count: parsed.length,
+  });
+  return parsed;
 }
 
 export async function getTransactionById(id: string | number) {
