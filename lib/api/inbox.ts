@@ -179,7 +179,7 @@ export async function loadConversationList(): Promise<ConversationListResult> {
     if (!(e instanceof InboxEndpointUnavailableError)) throw e;
   }
 
-  const txns = await listTransactions();
+  const txns = await listTransactions({ limit: 200 });
   const navIds = txns
     .map((tx) => getTransactionNavigationId(tx))
     .filter((navId): navId is string => Boolean(navId));
@@ -217,7 +217,7 @@ export async function computeTotalUnreadCount(): Promise<number> {
     if (!(e instanceof InboxEndpointUnavailableError)) throw e;
   }
 
-  const txns = await listTransactions();
+  const txns = await listTransactions({ limit: 200 });
   const navIds = txns
     .map((tx) => getTransactionNavigationId(tx))
     .filter((navId): navId is string => Boolean(navId));
