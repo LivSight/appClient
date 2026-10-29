@@ -66,10 +66,16 @@ function normalizeRecord<T>(data: unknown): T {
 }
 
 async function getJson<T>(url: string, tag: string): Promise<T> {
+  const t0 = Date.now();
   logger.info(tag, `GET ${url}`);
   const res = await apiFetch(url, { method: "GET" });
   const rawText = await res.text().catch(() => "");
   const data = parseResponseText(rawText);
+  logger.info("perf", tag, {
+    networkMs: Date.now() - t0,
+    payloadKb: Math.round(rawText.length / 102.4) / 10,
+    status: res.status,
+  });
 
   if (!res.ok) {
     logger.info(tag, "GET failed", { status: res.status, body: data ?? rawText });
@@ -103,11 +109,17 @@ export async function listNeighborhoods(): Promise<Neighborhood[]> {
 }
 
 export async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings | null> {
+  const t0 = Date.now();
   const url = `${API_BASE_URL}/api/delivery-fee-settings`;
   logger.info("getDeliveryFeeSettings", `GET ${url}`);
   const res = await apiFetch(url, { method: "GET" });
   const rawText = await res.text().catch(() => "");
   const data = parseResponseText(rawText);
+  logger.info("perf", "getDeliveryFeeSettings", {
+    networkMs: Date.now() - t0,
+    payloadKb: Math.round(rawText.length / 102.4) / 10,
+    status: res.status,
+  });
 
   if (res.status === 404) return null;
 
@@ -127,11 +139,19 @@ export type TariffsCatalog = {
 };
 
 export async function fetchTariffsCatalog(): Promise<TariffsCatalog> {
+  const t0 = Date.now();
   const [cities, zones, neighborhoods, settings] = await Promise.all([
     listCities(),
     listDeliveryFeeZones(),
     listNeighborhoods(),
     getDeliveryFeeSettings(),
   ]);
+  logger.info("perf", "fetchTariffsCatalog", {
+    totalMs: Date.now() - t0,
+    cities: cities.length,
+    zones: zones.length,
+    neighborhoods: neighborhoods.length,
+    hasSettings: settings != null,
+  });
   return { cities, zones, neighborhoods, settings };
 }

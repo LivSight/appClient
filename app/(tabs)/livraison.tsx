@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import LoadingState from "@/components/LoadingState";
 import { track } from "@/lib/analytics/events";
 import { View, Pressable } from "react-native";
@@ -40,7 +40,7 @@ export default function LivraisonScreen() {
   const [error, setError] = useState<string | null>(null);
   const [allOrders, setAllOrders] = useState<TransactionCardItem[]>([]);
 
-  const loadTransactions = useCallback(async (mode: "initial" | "refresh" = "initial") => {
+  const loadTransactions = useCallback(async (mode: "initial" | "refresh" | "silent" = "initial") => {
     const t0 = Date.now();
     logger.info("perf", "livraison:loadTransactions start", { mode });
     try {
@@ -63,14 +63,19 @@ export default function LivraisonScreen() {
       logger.info("perf", "livraison:loadTransactions failed", { mode, totalMs: Date.now() - t0 });
       setError(String(e instanceof Error ? e.message : e ?? "Erreur"));
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (mode === "initial") setLoading(false);
+      if (mode === "refresh") setRefreshing(false);
     }
   }, []);
 
+  // Full loader only on the very first load; later tab focuses refresh silently
+  // so the existing list stays on screen instead of flashing a spinner.
+  const hasLoadedOnceRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      void loadTransactions("initial");
+      void loadTransactions(hasLoadedOnceRef.current ? "silent" : "initial").finally(() => {
+        hasLoadedOnceRef.current = true;
+      });
     }, [loadTransactions]),
   );
 
