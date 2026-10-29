@@ -42,6 +42,9 @@
   },
   "submit": {
     "production": {
+      "ios": {
+        "ascAppId": "6788786430"
+      },
       "android": {
         "serviceAccountKeyPath": "$GOOGLE_PLAY_SERVICE_ACCOUNT_KEY",
         "track": "internal"
