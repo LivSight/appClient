@@ -40,7 +40,8 @@ BG_LIGHT_BOTTOM = (224, 242, 254)  # colors.iconBg
 IOS_STATUS_BAR_CROP = 170  # px of raw capture holding iOS status bar + island
 
 SHOTS = [
-    ("01-accueil.png", ["Suivez vos livraisons", "en temps réel"]),
+    # alain-raw: AI-renamed variant of 01-accueil.png (staging account name hidden)
+    ("01-accueil-alain-raw.png", ["Suivez vos livraisons", "en temps réel"]),
     ("07-demande.png", ["Commandez une livraison", "en quelques gestes"]),
     ("03-detail.png", ["Chaque étape,", "sous vos yeux"]),
     ("08-inbox.png", ["Soyez alerté", "à chaque mouvement"]),
@@ -289,7 +290,7 @@ def main():
     for i, (name, caption) in enumerate(SHOTS, start=1):
         style = "light" if i % 2 == 1 else "gradient"
         raw = os.path.join(RAW, name)
-        slug = os.path.splitext(name)[0].split("-", 1)[1]
+        slug = os.path.splitext(name)[0].split("-", 1)[1].replace("-alain-raw", "")
 
         # App Store Connect accepted sizes: 1206x2622 (6.1"/6.3") and 1320x2868 (6.9")
         compose(raw, caption, style, (1206, 2622), 80, 972, MOCK_IPHONE).save(
