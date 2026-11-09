@@ -198,6 +198,8 @@ export default function RapportsScreen() {
 
   const loadReports = useCallback(
     async (mode: "initial" | "refresh" | "silent" = "initial") => {
+      const t0 = Date.now();
+      logger.info("perf", "rapports:loadReports start", { mode, start: period.start, end: period.end });
       try {
         if (mode === "initial") setLoading(true);
         if (mode === "refresh") setRefreshing(true);
@@ -244,7 +246,13 @@ export default function RapportsScreen() {
           setExpeditionReport(expeditions);
           setPreviousExpeditionReport(previousExpeditions);
         }
+        logger.info("perf", "rapports:loadReports done", {
+          mode,
+          totalMs: Date.now() - t0,
+          viaSettlement: Boolean(settlementCurrent),
+        });
       } catch (e: unknown) {
+        logger.info("perf", "rapports:loadReports failed", { mode, totalMs: Date.now() - t0 });
         logger.warn("rapports", "load failed", e);
         setError("Impossible de charger vos rapports. Vérifiez votre connexion et réessayez.");
       } finally {

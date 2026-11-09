@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import LoadingState from "@/components/LoadingState";
 import { View, Pressable } from "react-native";
 import { router } from "expo-router";
@@ -23,6 +23,7 @@ import { formatDbText } from "@/lib/formatDisplayText";
 import { getUnreadInAppNotificationCount } from "@/lib/notifications/inAppNotifications";
 import { shouldRefreshInAppNotifications } from "@/lib/push/notificationRouting";
 import { usePushRefresh } from "@/lib/push/usePushRefresh";
+import { logger } from "@/lib/logger";
 const CATEGORIES: CategoryItem[] = [
   { title: "Livraison", iconName: "solar:delivery-bold-duotone", onPress: () => router.push("/ma-demande-livraison") },
   { title: "Expédition", iconName: "solar:rocket-bold-duotone", onPress: () => router.push({ pathname: "/ma-demande-expedition", params: { quartier: "" } }) },
@@ -37,15 +38,20 @@ export default function AccueilScreen() {
   const [user, setUser] = useState<User | null>(null);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
-  const loadTransactions = useCallback(async (mode: "initial" | "refresh" = "initial") => {
+  const loadTransactions = useCallback(async (mode: "initial" | "refresh" | "silent" = "initial") => {
+    const t0 = Date.now();
+    logger.info("perf", "accueil:loadTransactions start", { mode });
     try {
       if (mode === "initial") setLoading(true);
       setError(null);
-      const data = await listTransactions();
+      const data = await listTransactions({ limit: 5 });
       setTxns(data);
+      logger.info("perf", "accueil:loadTransactions done", { mode, totalMs: Date.now() - t0, count: data.length });
     } catch (e: unknown) {
+      logger.info("perf", "accueil:loadTransactions failed", { mode, totalMs: Date.now() - t0 });
       setError(String(e instanceof Error ? e.message : e ?? "Erreur"));
-      setTxns([]);
+      // A failed background refresh must not blank the card the user is looking at.
+      if (mode !== "silent") setTxns([]);
     } finally {
       if (mode === "initial") setLoading(false);
     }
@@ -78,9 +84,14 @@ export default function AccueilScreen() {
     void loadUnreadNotifications();
   });
 
+  // Full loader only on the very first load; later tab focuses refresh silently
+  // so the recent-order card stays on screen instead of flashing a spinner.
+  const hasLoadedOnceRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      void loadTransactions();
+      void loadTransactions(hasLoadedOnceRef.current ? "silent" : "initial").finally(() => {
+        hasLoadedOnceRef.current = true;
+      });
     }, [loadTransactions]),
   );
 

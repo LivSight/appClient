@@ -22,6 +22,7 @@ import {
   type TariffNeighborhoodRow,
   type TariffSupplementRow,
 } from "@/lib/api/tariffUi";
+import { logger } from "@/lib/logger";
 import { paginateStockList } from "@/lib/stock/paginateStockList";
 import { colors, fonts, radii, shadows, typography } from "@/theme/tokens";
 
@@ -227,30 +228,44 @@ export default function TarifsScreen() {
     [scrollToTop],
   );
 
-  const loadTariffs = useCallback(async (mode: "initial" | "refresh" = "initial") => {
+  const loadTariffs = useCallback(async (mode: "initial" | "refresh" | "silent" = "initial") => {
+    const t0 = Date.now();
+    logger.info("perf", "tarifs:loadTariffs start", { mode });
     try {
       if (mode === "initial") setLoading(true);
       if (mode === "refresh") setRefreshing(true);
       setError(null);
 
       const data = await fetchTariffsCatalog();
+      logger.info("perf", "tarifs:loadTariffs done", {
+        mode,
+        totalMs: Date.now() - t0,
+        neighborhoods: data.neighborhoods.length,
+      });
       setCatalog(data);
-      setPage(1);
+      // Silent refreshes keep the user's pagination; the data is near-static anyway.
+      if (mode !== "silent") setPage(1);
       setCityId((prev) => {
         if (prev && data.cities.some((c) => c.id === prev)) return prev;
         return pickDefaultCityId(data.cities);
       });
     } catch (e: unknown) {
+      logger.info("perf", "tarifs:loadTariffs failed", { mode, totalMs: Date.now() - t0 });
       setError(String(e instanceof Error ? e.message : e ?? "Erreur"));
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (mode === "initial") setLoading(false);
+      if (mode === "refresh") setRefreshing(false);
     }
   }, []);
 
+  // Full loader only on the very first load; later tab focuses refresh silently
+  // so the existing tables stay on screen instead of flashing a spinner.
+  const hasLoadedOnceRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      void loadTariffs("initial");
+      void loadTariffs(hasLoadedOnceRef.current ? "silent" : "initial").finally(() => {
+        hasLoadedOnceRef.current = true;
+      });
     }, [loadTariffs]),
   );
 

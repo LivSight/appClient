@@ -300,7 +300,9 @@ async function requireKeycloakId(action: string): Promise<string> {
 export type ReportKind = "settlement" | "deliveries" | "expeditions" | "stock";
 
 async function fetchReport<T>(kind: ReportKind, startDate: string, endDate: string): Promise<T> {
+  const t0 = Date.now();
   const keycloakId = await requireKeycloakId("consulter vos rapports");
+  const tSession = Date.now();
   const url = `${API_BASE_URL}/api/reports/${kind}?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
   logger.info("reports", `GET /api/reports/${kind}`, { url });
 
@@ -311,6 +313,14 @@ async function fetchReport<T>(kind: ReportKind, startDate: string, endDate: stri
 
   const rawText = await res.text().catch(() => "");
   const data = parseResponseText(rawText);
+  logger.info("perf", `fetchReport:${kind}`, {
+    range: `${startDate}..${endDate}`,
+    sessionMs: tSession - t0,
+    networkMs: Date.now() - tSession,
+    totalMs: Date.now() - t0,
+    payloadKb: Math.round(rawText.length / 102.4) / 10,
+    status: res.status,
+  });
 
   if (!res.ok) {
     logger.info("reports", `GET /api/reports/${kind} failed`, { status: res.status, body: data ?? rawText });
