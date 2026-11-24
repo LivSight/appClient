@@ -13,7 +13,7 @@ import { colors, fonts, radii, typography } from "../../theme/tokens";
 import { hapticLight } from "@/lib/haptics";
 import AppText from "../../components/AppText";
 import { getTransactionById, getTransactionNavigationId, canClientCancelTransaction, CLIENT_CANCEL_BLOCKED_MESSAGE, mapTxnStatusToUi, type Transaction } from "@/lib/api/transactions";
-import { formatScheduledDeliveryLabel } from "@/lib/scheduling/deliveryDate";
+import { dateRowLabel, isPostponedDelivery, scheduledBannerLabel } from "@/lib/scheduling/deliveryDetailLabels";
 import { formatDbText } from "@/lib/formatDisplayText";
 import { isTransactionPushType, matchesOpenTransaction } from "@/lib/push/notificationRouting";
 import { logger } from "@/lib/logger";
@@ -46,6 +46,8 @@ type Delivery = {
   deliveryFeePending: boolean;
   hasDriver: boolean;
   scheduledDeliveryDate?: string | null;
+  rescheduledAt?: string | null;
+  deliveredAt?: string | null;
   deliveryAttempt?: number | null;
 };
 
@@ -123,6 +125,8 @@ function mapTransactionToDelivery(tx: Transaction): Delivery {
       typeof tx.scheduled_delivery_date === "string" && tx.scheduled_delivery_date.trim().length
         ? tx.scheduled_delivery_date.trim()
         : null,
+    rescheduledAt: typeof tx.rescheduled_at === "string" && tx.rescheduled_at.trim().length ? tx.rescheduled_at.trim() : null,
+    deliveredAt: typeof tx.delivered_at === "string" && tx.delivered_at.trim().length ? tx.delivered_at.trim() : null,
     deliveryAttempt: Number.isFinite(Number(tx.delivery_attempt)) ? Math.max(1, Math.floor(Number(tx.delivery_attempt))) : null,
   };
 }
@@ -144,8 +148,17 @@ type Timeline = {
   step2Helper?: string;
 };
 
-function mapBackendStatusToTimeline(status?: string | null, hasDriver = false): Timeline {
+function mapBackendStatusToTimeline(
+  status?: string | null,
+  hasDriver = false,
+  postponedHelper: string | null = null,
+): Timeline {
   const s = normalizeStatus(status);
+
+  // A postponed delivery is not a cancellation, even when the backend still reports `failed`.
+  if (postponedHelper) {
+    return { step1: "completed", step2: "warning", step3: "upcoming", step2Helper: `${postponedHelper}.` };
+  }
 
   if (s === "delivered" || s === "completed" || s === "pickup") {
     return { step1: "completed", step2: "completed", step3: "active" };
@@ -285,34 +298,39 @@ export default function LivraisonDetailScreen() {
   );
 
   const canCancel = useMemo(() => canClientCancelTransaction(delivery?.status), [delivery?.status]);
+  const dateFacts = useMemo(
+    () => ({
+      status: delivery?.status,
+      scheduledDate: delivery?.scheduledDeliveryDate,
+      rescheduledAt: delivery?.rescheduledAt,
+    }),
+    [delivery?.status, delivery?.scheduledDeliveryDate, delivery?.rescheduledAt],
+  );
+  const bannerLabel = useMemo(
+    () => scheduledBannerLabel(dateFacts, new Date(), delivery?.service === "expedition"),
+    [dateFacts, delivery?.service],
+  );
+  const postponedHelper = useMemo(
+    () => (isPostponedDelivery(dateFacts) ? bannerLabel ?? "Livraison reportée" : null),
+    [dateFacts, bannerLabel],
+  );
   const timeline = useMemo(
-    () => mapBackendStatusToTimeline(delivery?.status, delivery?.hasDriver ?? false),
-    [delivery?.status, delivery?.hasDriver],
+    () => mapBackendStatusToTimeline(delivery?.status, delivery?.hasDriver ?? false, postponedHelper),
+    [delivery?.status, delivery?.hasDriver, postponedHelper],
   );
   const referenceTitle = useMemo(() => {
     if (!delivery) return null;
     return delivery.reference ? delivery.reference : `TR-${delivery.id}`;
   }, [delivery]);
-  const createdLabel = useMemo(() => {
-    const iso = delivery?.created_at;
-    if (!iso) return "Effectuée —";
-    try {
-      return `Effectuée le ${new Date(iso).toLocaleDateString("fr-FR", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })}`;
-    } catch {
-      return "Effectuée —";
-    }
-  }, [delivery?.created_at]);
-  const scheduledDeliveryLabel = useMemo(() => {
-    const iso = delivery?.scheduledDeliveryDate;
-    if (!iso) return null;
-    const label = formatScheduledDeliveryLabel(iso);
-    return label === "aujourd'hui" ? "aujourd'hui" : `le ${label}`;
-  }, [delivery?.scheduledDeliveryDate]);
+  const createdLabel = useMemo(
+    () =>
+      dateRowLabel({
+        status: delivery?.status,
+        createdAt: delivery?.created_at,
+        deliveredAt: delivery?.deliveredAt,
+      }),
+    [delivery?.status, delivery?.created_at, delivery?.deliveredAt],
+  );
   const isPlannedStatus = normalizeStatus(delivery?.status) === "scheduled";
   const statusUiLabel = useMemo(() => mapTxnStatusToUi(delivery?.status ?? undefined), [delivery?.status]);
 
@@ -394,7 +412,7 @@ export default function LivraisonDetailScreen() {
                   </View>
                 ) : null}
                 <AppText style={{ flex: 1, minWidth: 0, fontSize: 14, lineHeight: 20, fontFamily: fonts.bodySemi, color: colors.text }} numberOfLines={2}>
-                  Livraison prévue {scheduledDeliveryLabel}
+                  {bannerLabel}
                 </AppText>
               </View>
               {(delivery.deliveryAttempt ?? 1) > 1 ? (

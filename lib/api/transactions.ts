@@ -84,6 +84,8 @@ export type Transaction = {
   scheduled_delivery_date?: string | null;
   delivery_attempt?: number | null;
   rescheduled_at?: string | null;
+  /** Completion date, set by the backend when the delivery is completed or collected. */
+  delivered_at?: string | null;
   /** Total delivery fee in XAF (base + pickup + express), set by the backend */
   delivery_fee?: number | null;
   delivery_fee_base?: number | null;
