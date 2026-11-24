@@ -32,6 +32,9 @@ import {
   type ReportKind,
   type SettlementReport,
 } from "@/lib/api/reports";
+import DebtRecoveryCard from "@/components/DebtRecoveryCard";
+import { fetchClientBalance, fetchSettlementDebt } from "@/lib/api/clientBalance";
+import { shouldShowDebtCard, type ClientBalance, type SettlementDebt } from "@/lib/reports/debtDisplay";
 import { downloadAndShareReportPdf, isPdfPreviewAvailable, PDF_MODULES_UNAVAILABLE_MESSAGE } from "@/lib/reports/reportPdf";
 import {
   dateRangeLabel,
@@ -185,6 +188,8 @@ export default function RapportsScreen() {
   const [expeditionReport, setExpeditionReport] = useState<ExpeditionReport | null>(null);
   const [previousExpeditionReport, setPreviousExpeditionReport] = useState<ExpeditionReport | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState<ReportKind | null>(null);
+  const [clientBalance, setClientBalance] = useState<ClientBalance | null>(null);
+  const [settlementDebt, setSettlementDebt] = useState<SettlementDebt | null>(null);
 
   const period = useMemo(() => {
     const bounds = resolveReportPeriodBounds({ range, now: new Date(), customStart, customEnd });
@@ -213,10 +218,21 @@ export default function RapportsScreen() {
             return null;
           });
 
-        const [settlementCurrent, settlementPrevious] = await Promise.all([
+        // Dette à récupérer : best-effort aussi. Sans ces appels la carte Solde reste inchangée.
+        const [settlementCurrent, settlementPrevious, balanceResult, settlementDebtResult] = await Promise.all([
           fetchSettlementSafe(period.start, period.end),
           fetchSettlementSafe(period.prevStart, period.prevEnd),
+          fetchClientBalance().catch((e: unknown) => {
+            logger.warn("rapports", "client balance unavailable", e);
+            return null;
+          }),
+          fetchSettlementDebt(period.start, period.end).catch((e: unknown) => {
+            logger.warn("rapports", "settlement debt unavailable", e);
+            return null;
+          }),
         ]);
+        setClientBalance(balanceResult);
+        setSettlementDebt(settlementDebtResult);
 
         if (settlementCurrent) {
           setSettlement(settlementCurrent);
@@ -477,6 +493,9 @@ export default function RapportsScreen() {
             />
           </View>
         </View>
+        {shouldShowDebtCard(clientBalance, settlementDebt) ? (
+          <DebtRecoveryCard balance={clientBalance} settlement={settlementDebt} />
+        ) : null}
       </View>
       ) : null}
 
