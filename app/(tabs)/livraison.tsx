@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import LoadingState from "@/components/LoadingState";
 import { track } from "@/lib/analytics/events";
+import { useEmptyUxTracking } from "@/lib/analytics/useEmptyUxTracking";
 import { View, Pressable } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
@@ -96,6 +97,13 @@ export default function LivraisonScreen() {
   );
   const hasAnyOrders = allOrders.length > 0;
   const isFilteredEmpty = hasAnyOrders && orders.length === 0;
+
+  useEmptyUxTracking({
+    ecran: "courses",
+    ready: !loading && !error,
+    isEmpty: orders.length === 0,
+    hasActiveFilters: isFilteredEmpty,
+  });
 
   return (
     <ScreenLayout

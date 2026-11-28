@@ -9,7 +9,7 @@ events or inventing support contact tracking we do not have.
 **Base for PRs:** `staging`  
 **Living catalog:** [`docs/ANALYTICS_POSTHOG.md`](./ANALYTICS_POSTHOG.md) + `lib/analytics/events.ts`  
 **Last updated:** 2026-11-28  
-**Current phase:** 3 (UX events: empty + search) — wait for human before coding
+**Current phase:** 4 (document catalog) — wait for human before editing docs
 
 ---
 
@@ -142,7 +142,7 @@ flip after human OK (multi-phase items only on the **last** required phase).
 | 0 | Preconditions & Linear gate | Done (branch + plan) | Cursor | 2026-11-28 |
 | 1 | Audit instrumentation & screen emissions | Done | Cursor | 2026-11-28 |
 | 2 | Stable `$screen` map + dedupe | Done | Cursor | 2026-11-28 |
-| 3 | UX events: empty + search (TDD) | Not started | — | — |
+| 3 | UX events: empty + search (TDD) | Done | Cursor | 2026-11-28 |
 | 4 | Document catalog, aliases, unavailable | Not started | — | — |
 | 5 | Staging verification checklist | Not started | — | — |
 
@@ -157,7 +157,8 @@ Statuses: `Not started` · `In progress` · `Blocked` · `Done`
 | `lib/analytics/*` | PostHog client, typed `track()`, identity, mappers | Reuse; extend catalog carefully |
 | `AnalyticsProvider` | `captureScreens: false`, `captureTouches: false` | Autocapture screens off — manual `$screen` via `useScreenAnalytics` |
 | `screenNames.ts` + `useScreenAnalytics` | Stable route map + dedupe + `client.screen()` | Phase 2 Done |
-| `events.ts` | **18** typed events (`ANALYTICS_POSTHOG.md` still says 17) | Add only `recherche_sans_resultat`, `etat_vide_affiche` |
+| `events.ts` | **20** typed events (`ANALYTICS_POSTHOG.md` still stale) | Includes `recherche_sans_resultat`, `etat_vide_affiche` |
+| `emptyUx.ts` + `useEmptyUxTracking` | Classify + dedupe empty/search UX | Phase 3 Done |
 | `track()` call sites | See [Phase 1 appendix](#phase-1-appendix--audit-2026-11-28) | All catalogued; no unnamed captures |
 | `quartier_recherche` | Tariff quartier lookup; `trouve: false` = uncovered | Keep; not a substitute for list-search empty |
 | Failure events | `demande_echouee`, `connexion_echouee`, `ajout_stock_echoue`, `document_echec`, `erreur_api` | Cover `action_echouee` |
@@ -285,7 +286,7 @@ Refs LIV-132
 
 ## Phase 3 — UX events: empty + search (TDD)
 
-**Status:** Not started  
+**Status:** Done (2026-11-28, Cursor)  
 **Goal:** Add `etat_vide_affiche` and `recherche_sans_resultat` at unique capture points.
 
 ### Scope
@@ -301,7 +302,7 @@ Refs LIV-132
 
 ### Verification
 
-- `npm test` green (analytics + touched UI tests).
+- `npm test` — 600 passed (incl. `emptyUx` + full suite).
 
 ### Commit
 
@@ -310,6 +311,11 @@ feat(analytics): track empty states and search with no results [LIV-132]
 
 Refs LIV-132
 ```
+
+### Exit notes
+
+- Wired: stock, tarifs, courses (`livraison`), conversations, notifications, tarifs_zone, rapports.
+- Do **not** start Phase 4 until the human explicitly says so.
 
 ---
 

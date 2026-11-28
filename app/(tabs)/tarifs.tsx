@@ -22,6 +22,7 @@ import {
   type TariffNeighborhoodRow,
   type TariffSupplementRow,
 } from "@/lib/api/tariffUi";
+import { useEmptyUxTracking } from "@/lib/analytics/useEmptyUxTracking";
 import { logger } from "@/lib/logger";
 import { paginateStockList } from "@/lib/stock/paginateStockList";
 import { colors, fonts, radii, shadows, typography } from "@/theme/tokens";
@@ -321,6 +322,15 @@ export default function TarifsScreen() {
   const cityHeader = activeCity ? cityHeaderLabel(activeCity) : null;
   const catalogIsEmpty = catalog != null && isTariffsCatalogEmpty(catalog);
   const hasActiveSearch = query.trim().length > 0;
+  const searchMiss =
+    !catalogIsEmpty && neighborhoodRows.length > 0 && filteredNeighborhoodRows.length === 0 && hasActiveSearch;
+
+  useEmptyUxTracking({
+    ecran: "tarifs",
+    ready: !loading && !error && catalog != null,
+    isEmpty: catalogIsEmpty || searchMiss,
+    hasActiveSearch: searchMiss,
+  });
 
   const body = loading ? (
     <LoadingState label="Chargement des tarifs…" />
