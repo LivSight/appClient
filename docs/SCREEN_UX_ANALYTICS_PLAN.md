@@ -9,7 +9,7 @@ events or inventing support contact tracking we do not have.
 **Base for PRs:** `staging`  
 **Living catalog:** [`docs/ANALYTICS_POSTHOG.md`](./ANALYTICS_POSTHOG.md) + `lib/analytics/events.ts`  
 **Last updated:** 2026-11-28  
-**Current phase:** 5 (staging verification) — wait for human before checklist
+**Current phase:** complete (code + local/Development verify) — PR / production verify on human request
 
 ---
 
@@ -144,7 +144,7 @@ flip after human OK (multi-phase items only on the **last** required phase).
 | 2 | Stable `$screen` map + dedupe | Done | Cursor | 2026-11-28 |
 | 3 | UX events: empty + search (TDD) | Done | Cursor | 2026-11-28 |
 | 4 | Document catalog, aliases, unavailable | Done | Cursor | 2026-11-28 |
-| 5 | Staging verification checklist | Not started | — | — |
+| 5 | Staging verification checklist | Done | Cursor + human | 2026-11-28 |
 
 Statuses: `Not started` · `In progress` · `Blocked` · `Done`
 
@@ -352,7 +352,7 @@ Refs LIV-132
 
 ## Phase 5 — Staging verification checklist
 
-**Status:** Not started  
+**Status:** Done (2026-11-28)  
 **Goal:** Satisfy staging AC before treating the issue as ready for production rollout.
 
 ### Scope
@@ -367,7 +367,8 @@ Refs LIV-132
 
 ### Verification
 
-- Human confirms checklist results against PostHog Staging/Development project Activity.
+- Local/dev client → PostHog **LivSight Development** (MCP `execute-sql`, last 6h, `app_source = app_client`).
+- Human confirmed checklist should work; MCP sample confirmed core signals.
 
 ### Commit
 
@@ -376,6 +377,12 @@ docs(analytics): record staging verification for screen UX [LIV-132]
 
 Refs LIV-132
 ```
+
+### Exit notes
+
+- Observed: `$screen` with stable names (`accueil`, `courses`, `tarifs`, `stock`, `rapports`, `livraison_detail`, `rapport_pdf_preview`); `recherche_sans_resultat` (`contexte: stock`, no raw query); `etat_vide_affiche` (`courses` / `filtre`); all with `app_source: app_client`.
+- Production Activity verify remains open on Linear until store/rollout.
+- Open a PR only when the human asks (base `staging`).
 
 ---
 
