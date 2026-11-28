@@ -12,7 +12,7 @@ Development then recreated in Production.
 **PostHog Development:** LivSight Development (local + staging/preview keys)  
 **PostHog Production:** [project 309875](https://eu.posthog.com/project/309875)  
 **Last updated:** 2026-11-28  
-**Current phase:** 2 Done — waiting for human to start Phase 3  
+**Current phase:** 3 Done — waiting for human to start Phase 4  
 **PostHog Development id:** `309706` (timezone **UTC**)  
 **Development dashboard:** [Client operational engagement](https://eu.posthog.com/project/309706/dashboard/1159076) (`1159076`)
 
@@ -158,7 +158,7 @@ flip after human OK (multi-phase items only on the **last** required phase).
 | 0 | Preconditions & Linear gate | Done (branch + plan) | Cursor | 2026-11-28 |
 | 1 | Audit instrumentation ↔ dashboard metrics | Done | Cursor | 2026-11-28 |
 | 2 | Build dashboard in LivSight Development | Done | Cursor | 2026-11-28 |
-| 3 | Document denominators, coverage, definitions | Not started | — | — |
+| 3 | Document denominators, coverage, definitions | Done | Cursor | 2026-11-28 |
 | 4 | Development / staging verification | Not started | — | — |
 | 5 | Recreate Production dashboard + link ticket | Not started | — | — |
 
@@ -318,19 +318,24 @@ Refs LIV-135
 
 ## Phase 3 — Document denominators, coverage, definitions
 
-**Status:** Not started  
+**Status:** Done (2026-11-28, Cursor)  
 **Goal:** Living docs match the dashboard contract.
 
 ### Scope
 
-- Update [`docs/ANALYTICS_POSTHOG.md`](./ANALYTICS_POSTHOG.md) (and/or a short section linked from it): metric definitions, triggers, properties, unavailable/deferred metrics, week/denominator rules, Dev→Prod twin process.
-- Link plan from [`docs/README.md`](./README.md) if not already.
-- Document any catalog changes from Phase 1 (even if “none”).
+- [`docs/ANALYTICS_POSTHOG.md`](./ANALYTICS_POSTHOG.md): section **Dashboard engagement opérationnel (LIV-135)** — métriques, dénominateurs, Dev→Prod twin, indisponibles (`rapport_consulte`, taux API %, livraisons terminées).
+- Catalog changes: **none** (reuse only).
+- Index: [`docs/README.md`](./README.md) links this plan.
 
 ### Verification
 
-- Docs review by human.
-- No app behavior change unless a prior phase already shipped instrumentation (then tests still green).
+- Docs written; human review welcome.
+- No app behavior change.
+
+### Exit notes
+
+- Propose Linear AC flip for **audit + document changes** (Phase 3 is last for that box).
+- Do **not** start Phase 4 until the human explicitly says so.
 
 ### Suggested commit
 
