@@ -3,18 +3,20 @@
 Plan for [LIV-135](https://linear.app/livsight-sarl/issue/LIV-135/client-mobile-build-operational-engagement-analytics-dashboard):
 measure meaningful operational usage of LivSight Client (users, not merchants) via a PostHog
 dashboard — active/engaged users, feature adoption, retention, inactivity, opens, report
-downloads, API reliability — built on existing instrumentation where possible, validated in
-Development then recreated in Production.
+downloads, API reliability — built on existing instrumentation where possible.
+**Deliverable is Production-only** (human decision 2026-11-28): skip staging dashboard verification;
+canonical board lives on LivSight Production. Development board `1159076` remains a design
+reference only (not a staging gate).
 
 **Branch:** `edjou/liv-135-client-mobile-build-operational-engagement`  
 **Base for PRs:** `staging`  
 **Living catalog:** [`docs/ANALYTICS_POSTHOG.md`](./ANALYTICS_POSTHOG.md) + `lib/analytics/events.ts`  
-**PostHog Development:** LivSight Development (local + staging/preview keys)  
-**PostHog Production:** [project 309875](https://eu.posthog.com/project/309875)  
+**PostHog Development:** LivSight Development `309706` (reference / design only for this issue)  
+**PostHog Production (canonical):** [project 309875](https://eu.posthog.com/project/309875)  
 **Last updated:** 2026-11-28  
-**Current phase:** 3 Done — waiting for human to start Phase 4  
+**Current phase:** 3 Done — Phase 4 **Skipped**; waiting for human to start Phase 5 (Prod)  
 **PostHog Development id:** `309706` (timezone **UTC**)  
-**Development dashboard:** [Client operational engagement](https://eu.posthog.com/project/309706/dashboard/1159076) (`1159076`)
+**Development dashboard (reference only):** [Client operational engagement](https://eu.posthog.com/project/309706/dashboard/1159076) (`1159076`)
 
 ---
 
@@ -120,8 +122,8 @@ LIV-135-linked commits when committing repo changes.
 | Entity | **Users** only — no merchant entity; identity = Keycloak `keycloakId` |
 | Linear scope | Rewritten merchants → users (human-approved) |
 | Primary deliverable | PostHog **dashboard** (not an in-app UI) |
-| Environments | Build/validate in **LivSight Development**; recreate twin in **LivSight Production** (`309875`) |
-| How prod gets the board | Projects are separate — **recreate** same insight definitions on Production (no auto-move) |
+| Environments | **Prod-only deliverable** (2026-11-28): canonical dashboard on **LivSight Production** (`309875`). Dev board kept as design reference only; **no staging verification gate** |
+| How prod gets the board | Projects are separate — **recreate** same insight definitions on Production from the Dev reference (no auto-move) |
 | Existing tracking | Events already flow via SDK; dashboard **queries** them — no “wire to dashboard” in app code |
 | Engaged user (weekly) | **Approved Phase 1:** unique user with ≥1 of `demande_soumise` **OR** `$screen` with `$screen_name = 'stock'` **OR** `rapport_visualise`. Optional later: also `ajouter_au_stock` screen — not in v1 |
 | Deliveries per user | **Include** as **“Demandes soumises / user”** (`demande_soumise`) — request submissions, **not** carrier-completed deliveries |
@@ -145,8 +147,8 @@ flip after human OK (multi-phase items only on the **last** required phase).
 |---|---|
 | Audit existing instrumentation; reuse equivalent names; document any changes | **1** (audit); **3** (docs finalize) — last for “document any changes” |
 | All applicable events use `app_source = app_client` and correct env PostHog project | Inherit from existing `register`; confirm in **2** (Dev) and **5** (Prod) — **5** last |
-| Verify event names, properties and counts in staging before production; no duplicate events or cross-tenant leakage | **4** (Development/staging verify — last for staging half); prod twin in **5** |
-| Do not capture PII, credentials, raw search input or sensitive payloads | **1–2** (design); confirm in **3–4** |
+| Verify event names, properties and counts on **Production**; no duplicate events or cross-tenant leakage *(rewritten 2026-11-28 — was staging-before-prod; Prod-only)* | **5** (Production verify — last) |
+| Do not capture PII, credentials, raw search input or sensitive payloads | **1–2** (design); confirm in **3** + **5** |
 | Document event definitions, trigger semantics, supported properties and unavailable features; verify production events after rollout | **3** (docs); production verify **5** / post-rollout Exit notes — **5** last |
 
 ---
@@ -159,7 +161,7 @@ flip after human OK (multi-phase items only on the **last** required phase).
 | 1 | Audit instrumentation ↔ dashboard metrics | Done | Cursor | 2026-11-28 |
 | 2 | Build dashboard in LivSight Development | Done | Cursor | 2026-11-28 |
 | 3 | Document denominators, coverage, definitions | Done | Cursor | 2026-11-28 |
-| 4 | Development / staging verification | Not started | — | — |
+| 4 | Development / staging verification | **Skipped** (Prod-only, 2026-11-28) | — | 2026-11-28 |
 | 5 | Recreate Production dashboard + link ticket | Not started | — | — |
 
 Statuses: `Not started` · `In progress` · `Blocked` · `Done`
@@ -334,8 +336,8 @@ Refs LIV-135
 
 ### Exit notes
 
-- Propose Linear AC flip for **audit + document changes** (Phase 3 is last for that box).
-- Do **not** start Phase 4 until the human explicitly says so.
+- Linear AC **audit + document changes** flipped after human OK (2026-11-28).
+- Human decided **Prod-only** — Phase 4 skipped; do **not** start Phase 5 until the human explicitly says so.
 
 ### Suggested commit
 
@@ -349,44 +351,35 @@ Refs LIV-135
 
 ## Phase 4 — Development / staging verification
 
-**Status:** Not started  
-**Goal:** Satisfy staging-before-prod AC against Development project (staging builds share that key).
+**Status:** **Skipped** (2026-11-28)  
+**Goal:** ~~Satisfy staging-before-prod AC against Development~~ — **cancelled**.
 
-### Scope
+### Exit notes
 
-- Checklist: event names, properties, sample counts; no duplicate double-counting for engaged definition; `app_source` present; no PII in sampled properties; no cross-tenant leakage assumptions documented.
-- Record results in Exit notes (what was checked, when, by whom).
-
-### Verification
-
-- Human signs off checklist in Exit notes.
-
-### Suggested commit
-
-```text
-docs(analytics): record Development verification for engagement dashboard [LIV-135]
-
-Refs LIV-135
-```
+- Human: do **not** gate this work on staging; go **directly to Production**.
+- Linear AC rewritten from “staging before production” → “verify on Production” (see checkbox map).
+- Dev dashboard `1159076` kept as **design reference** only; not required for AC completion.
+- No commit required for this skip alone (docs update may ship with Phase 5 or a small `docs:` commit if human asks).
 
 ---
 
 ## Phase 5 — Recreate Production dashboard + link ticket
 
 **Status:** Not started  
-**Goal:** Twin dashboard on Production `309875`; link on LIV-135; note prod event verification.
+**Goal:** Canonical dashboard on Production `309875`; link on LIV-135; verify events/properties/counts on Prod.
 
 ### Scope
 
-- Recreate same insights/dashboard on **LivSight Production** (definitions from Phases 1–2).
+- Recreate same insights/dashboard on **LivSight Production** from Dev reference definitions (Phases 1–2).
 - Filter `app_source = app_client`.
+- Checklist on Prod: event names, properties, sample counts; no engaged double-count; no PII in sampled props; no cross-tenant leakage assumptions documented.
 - Add Production dashboard URL to Linear issue (link attachment or description).
-- Spot-check Production Activity after store/prod traffic (or note “pending rollout” in Exit notes if no prod traffic yet).
+- Spot-check Production Activity (or note “pending traffic” in Exit notes if sparse).
 - Do **not** use `Fixes LIV-135` on commits unless human says the issue is finished.
 
 ### Verification
 
-- Prod dashboard URL live; Linear linked; human OK on twin parity.
+- Prod dashboard URL live; Linear linked; human OK on parity with Dev reference + Prod verify checklist.
 
 ### Suggested commit
 
@@ -415,7 +408,7 @@ Use `Fixes LIV-135` only when human confirms the issue is complete.
 |---|---|
 | Merchants vs users | **Resolved** — users only |
 | Base branch | **Resolved** — `staging` |
-| Dev → Prod move | **Resolved** — recreate twin on Production |
+| Dev → Prod move | **Resolved** — recreate on Production; **Prod-only** deliverable (skip staging verify / Phase 4) |
 | Exact engaged-user event set | **Resolved** — `demande_soumise` ∨ `$screen`/`stock` ∨ `rapport_visualise` |
 | Deliveries per user in/out | **Resolved** — in as Demandes soumises / user |
 | API reliability shape | **Resolved** — `erreur_api` count, not % |

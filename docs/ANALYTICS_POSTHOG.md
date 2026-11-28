@@ -22,8 +22,8 @@ Intégration de PostHog (EU cloud) dans l'**app client** : `$screen` à noms sta
 | Dev local → *LivSight Development* (clé dans `.env`) | ✅ |
 | Staging / preview (EAS) → *LivSight Development* | ✅ clé présente (confirmé produit) |
 | Build production → *LivSight Production* (expo.dev, env `production`) | ✅ |
-| Dashboard engagement opérationnel (Development) | ✅ (LIV-135) — [board Dev](https://eu.posthog.com/project/309706/dashboard/1159076) |
-| Dashboard engagement opérationnel (Production) | ⏳ twin à créer (Phase 5 LIV-135) sur [309875](https://eu.posthog.com/project/309875) |
+| Dashboard engagement opérationnel (Development) | ✅ référence design seulement — [board Dev](https://eu.posthog.com/project/309706/dashboard/1159076) |
+| Dashboard engagement opérationnel (Production) | ⏳ **canonique** à créer (Phase 5 LIV-135, Prod-only) sur [309875](https://eu.posthog.com/project/309875) |
 
 **Après rollout store :** confirmer sur *LivSight Production → Activity* que les events arrivent avec `app_source: app_client`.
 
@@ -153,13 +153,13 @@ EXPO_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
 ## Dashboard engagement opérationnel (LIV-135)
 
 Board PostHog pour mesurer l'usage opérationnel réel (pas seulement les opens).  
-**Development :** [Client operational engagement](https://eu.posthog.com/project/309706/dashboard/1159076) (projet `309706`, TZ **UTC**).  
-**Production :** recreer le même board sur [309875](https://eu.posthog.com/project/309875) (projets séparés — pas de copie auto).
+**Production (canonique, Prod-only) :** à créer sur [309875](https://eu.posthog.com/project/309875) — pas de gate staging.  
+**Development (référence design) :** [Client operational engagement](https://eu.posthog.com/project/309706/dashboard/1159076) (projet `309706`, TZ **UTC**).
 
 ### Règles communes
 
-- Filtrer **toujours** `app_source = app_client` (projet Dev partagé avec d'autres apps).
-- Semaines **lundi–dimanche** (UTC sur Development).
+- Filtrer **toujours** `app_source = app_client` (projets partagés avec d'autres apps).
+- Semaines **lundi–dimanche** (documenter le TZ du projet PostHog — UTC sur Dev `309706`).
 - Identité = utilisateur Keycloak (`keycloakId`) — **pas** d'entité « merchant ».
 - **Aucun nouvel event** pour v1 : réutilisation du catalogue des 20 events + `$screen` + `Application Opened`.
 
@@ -205,4 +205,4 @@ npm test -- --testPathPattern=lib/analytics
 1. SDK + env + identité + catalogue métier/features/profondeur.
 2. Projets partagés Development/Production + `app_source: app_client`.
 3. **LIV-132** — `$screen` stable + dedupe ; `recherche_sans_resultat` / `etat_vide_affiche` ; docs alias / indisponibles.
-4. **LIV-135** — dashboard engagement opérationnel (Development) ; métriques documentées ; twin Production à suivre.
+4. **LIV-135** — dashboard engagement opérationnel **Prod-only** ; métriques documentées ; Dev board = référence ; Production Phase 5.
