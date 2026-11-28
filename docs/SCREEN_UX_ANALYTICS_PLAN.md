@@ -9,7 +9,7 @@ events or inventing support contact tracking we do not have.
 **Base for PRs:** `staging`  
 **Living catalog:** [`docs/ANALYTICS_POSTHOG.md`](./ANALYTICS_POSTHOG.md) + `lib/analytics/events.ts`  
 **Last updated:** 2026-11-28  
-**Current phase:** 2 (stable `$screen` map + dedupe) — wait for human before coding
+**Current phase:** 3 (UX events: empty + search) — wait for human before coding
 
 ---
 
@@ -141,7 +141,7 @@ flip after human OK (multi-phase items only on the **last** required phase).
 |---|---|---|---|---|
 | 0 | Preconditions & Linear gate | Done (branch + plan) | Cursor | 2026-11-28 |
 | 1 | Audit instrumentation & screen emissions | Done | Cursor | 2026-11-28 |
-| 2 | Stable `$screen` map + dedupe | Not started | — | — |
+| 2 | Stable `$screen` map + dedupe | Done | Cursor | 2026-11-28 |
 | 3 | UX events: empty + search (TDD) | Not started | — | — |
 | 4 | Document catalog, aliases, unavailable | Not started | — | — |
 | 5 | Staging verification checklist | Not started | — | — |
@@ -155,7 +155,8 @@ Statuses: `Not started` · `In progress` · `Blocked` · `Done`
 | Existing piece | Role today | Relation to LIV-132 |
 |---|---|---|
 | `lib/analytics/*` | PostHog client, typed `track()`, identity, mappers | Reuse; extend catalog carefully |
-| `AnalyticsProvider` | `captureScreens: true`, `captureTouches: false` | No stable map / dedupe — Phase 2 owns `$screen` |
+| `AnalyticsProvider` | `captureScreens: false`, `captureTouches: false` | Autocapture screens off — manual `$screen` via `useScreenAnalytics` |
+| `screenNames.ts` + `useScreenAnalytics` | Stable route map + dedupe + `client.screen()` | Phase 2 Done |
 | `events.ts` | **18** typed events (`ANALYTICS_POSTHOG.md` still says 17) | Add only `recherche_sans_resultat`, `etat_vide_affiche` |
 | `track()` call sites | See [Phase 1 appendix](#phase-1-appendix--audit-2026-11-28) | All catalogued; no unnamed captures |
 | `quartier_recherche` | Tariff quartier lookup; `trouve: false` = uncovered | Keep; not a substitute for list-search empty |
@@ -246,7 +247,7 @@ Refs LIV-132
 
 ## Phase 2 — Stable `$screen` map + dedupe
 
-**Status:** Not started  
+**Status:** Done (2026-11-28, Cursor)  
 **Goal:** `$screen` fires once per real navigation with stable names; no re-render duplicates.
 
 ### Scope
@@ -262,9 +263,9 @@ Refs LIV-132
 
 ### Verification
 
-- Unit tests for resolver + dedupe.
-- `npm test` green.
-- Manual/staging check listed in Phase 5 (spot-check OK in exit notes if possible).
+- Unit tests for resolver + dedupe + `captureScreenTransition` (7 cases) — green.
+- `__tests__/lib/analytics` — 37 tests green.
+- Staging Activity spot-check deferred to Phase 5.
 
 ### Commit
 
@@ -273,6 +274,12 @@ feat(analytics): stable screen names with navigation dedupe [LIV-132]
 
 Refs LIV-132
 ```
+
+### Exit notes
+
+- Files: `lib/analytics/screenNames.ts`, `useScreenAnalytics.ts`; `AnalyticsProvider` `captureScreens: false`; hook in `app/_layout.tsx`.
+- `$screen` uses PostHog `client.screen(name)` → event `$screen` with `$screen_name`; `app_source` still from `register`.
+- Do **not** start Phase 3 until the human explicitly says so.
 
 ---
 

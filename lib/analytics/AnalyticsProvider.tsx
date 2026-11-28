@@ -12,7 +12,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
   if (!client) return <>{children}</>;
 
   return (
-    <PostHogProvider client={client} autocapture={{ captureScreens: true, captureTouches: false }}>
+    <PostHogProvider client={client} autocapture={{ captureScreens: false, captureTouches: false }}>
       {children}
     </PostHogProvider>
   );
