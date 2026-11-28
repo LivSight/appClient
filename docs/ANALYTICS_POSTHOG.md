@@ -5,6 +5,7 @@ Intégration de PostHog (EU cloud) dans l'**app client** : `$screen` à noms sta
 **Dernière mise à jour :** 2026-11-28  
 **Région :** EU — `https://eu.i.posthog.com`  
 **Plan LIV-132 :** [SCREEN_UX_ANALYTICS_PLAN.md](./SCREEN_UX_ANALYTICS_PLAN.md)  
+**Plan LIV-135 :** [OPERATIONAL_ENGAGEMENT_ANALYTICS_PLAN.md](./OPERATIONAL_ENGAGEMENT_ANALYTICS_PLAN.md)  
 **Voir aussi :** [PUSH_NOTIFICATIONS_CLIENT.md](./PUSH_NOTIFICATIONS_CLIENT.md) (events `notification_*`)
 
 ---
@@ -21,6 +22,8 @@ Intégration de PostHog (EU cloud) dans l'**app client** : `$screen` à noms sta
 | Dev local → *LivSight Development* (clé dans `.env`) | ✅ |
 | Staging / preview (EAS) → *LivSight Development* | ✅ clé présente (confirmé produit) |
 | Build production → *LivSight Production* (expo.dev, env `production`) | ✅ |
+| Dashboard engagement opérationnel (Development) | ✅ référence design seulement — [board Dev](https://eu.posthog.com/project/309706/dashboard/1159076) |
+| Dashboard engagement opérationnel (Production) | ✅ **canonique** — [board Prod](https://eu.posthog.com/project/309875/dashboard/1159090) (`1159090`, TZ UTC) |
 
 **Après rollout store :** confirmer sur *LivSight Production → Activity* que les events arrivent avec `app_source: app_client`.
 
@@ -141,6 +144,41 @@ EXPO_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
 | Recherche quartier hors zone | Rester sur `quartier_recherche` + `trouve: false` (pas `recherche_sans_resultat`) |
 | Notification lifecycle avancé | **LIV-23** |
 | Session replay | **LIV-31** |
+| `rapport_consulte` (legacy) | **Ne pas utiliser** pour l'app client — trafic `app_agent` ; client = `rapport_visualise` |
+| Taux d'erreur API (%) | **Indisponible** — pas de volume d'appels réussis ; dashboard = **count** `erreur_api` |
+| Livraisons terminées / user | **Indisponible** — utiliser « demandes soumises » (`demande_soumise`), pas le statut transporteur |
+
+---
+
+## Dashboard engagement opérationnel (LIV-135)
+
+Board PostHog pour mesurer l'usage opérationnel réel (pas seulement les opens).  
+**Production (canonique, Prod-only) :** [Client operational engagement](https://eu.posthog.com/project/309875/dashboard/1159090) (projet `309875`, TZ **UTC**, `week_start_day` = Monday).  
+**Development (référence design) :** [Client operational engagement](https://eu.posthog.com/project/309706/dashboard/1159076) (projet `309706`, TZ **UTC**).
+
+### Règles communes
+
+- Filtrer **toujours** `app_source = app_client` (projets partagés avec d'autres apps).
+- Semaines **lundi–dimanche** (documenter le TZ du projet PostHog — UTC sur Dev `309706`).
+- Identité = utilisateur Keycloak (`keycloakId`) — **pas** d'entité « merchant ».
+- **Aucun nouvel event** pour v1 : réutilisation du catalogue des 20 events + `$screen` + `Application Opened`.
+
+### Métriques → events
+
+| Métrique (board) | Signal | Dénominateur / notes |
+|------------------|--------|----------------------|
+| Active users (W/M) | Unique users avec `$screen` | Semaine / mois complets |
+| Engaged users (hebdo) | Unique users avec `demande_soumise` **OU** (`$screen` ∧ `$screen_name = stock`) **OU** `rapport_visualise` | OR PostHog `GroupNode` |
+| Feature adoption | Unique users par `$screen_name` | Breakdown sur `$screen` |
+| Active days | Stickiness sur `$screen` | Jours d'activité sur 30 j |
+| Rétention 30 j | Retention `$screen` → `$screen` | First-time cohorts |
+| Inactive | Lifecycle `$screen` — statut **dormant** | Proxy « inactif » |
+| Opens / user | `Application Opened` total ÷ unique openers | Formule `A/B` |
+| Report downloads | `document_telecharge` | Peut être vide si flux non exercé en Dev |
+| API reliability | Count `erreur_api` | **Pas** un % |
+| Demandes / user | `demande_soumise` total ÷ unique requesters | Soumissions, pas livraisons terminées |
+
+Détail phases / handoff agents : [OPERATIONAL_ENGAGEMENT_ANALYTICS_PLAN.md](./OPERATIONAL_ENGAGEMENT_ANALYTICS_PLAN.md).
 
 ## Ajouter un nouvel event
 
@@ -167,3 +205,4 @@ npm test -- --testPathPattern=lib/analytics
 1. SDK + env + identité + catalogue métier/features/profondeur.
 2. Projets partagés Development/Production + `app_source: app_client`.
 3. **LIV-132** — `$screen` stable + dedupe ; `recherche_sans_resultat` / `etat_vide_affiche` ; docs alias / indisponibles.
+4. **LIV-135** — dashboard engagement opérationnel **Prod-only** ([1159090](https://eu.posthog.com/project/309875/dashboard/1159090)) ; métriques documentées ; Dev board = référence.
