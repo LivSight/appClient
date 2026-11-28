@@ -9,7 +9,7 @@ events or inventing support contact tracking we do not have.
 **Base for PRs:** `staging`  
 **Living catalog:** [`docs/ANALYTICS_POSTHOG.md`](./ANALYTICS_POSTHOG.md) + `lib/analytics/events.ts`  
 **Last updated:** 2026-11-28  
-**Current phase:** 0 (branch + plan)
+**Current phase:** 2 (stable `$screen` map + dedupe) — wait for human before coding
 
 ---
 
@@ -140,7 +140,7 @@ flip after human OK (multi-phase items only on the **last** required phase).
 | Phase | Name | Status | Owner / agent | Completed |
 |---|---|---|---|---|
 | 0 | Preconditions & Linear gate | Done (branch + plan) | Cursor | 2026-11-28 |
-| 1 | Audit instrumentation & screen emissions | Not started | — | — |
+| 1 | Audit instrumentation & screen emissions | Done | Cursor | 2026-11-28 |
 | 2 | Stable `$screen` map + dedupe | Not started | — | — |
 | 3 | UX events: empty + search (TDD) | Not started | — | — |
 | 4 | Document catalog, aliases, unavailable | Not started | — | — |
@@ -150,20 +150,20 @@ Statuses: `Not started` · `In progress` · `Blocked` · `Done`
 
 ---
 
-## Context snapshot (planning, 2026-11-28)
+## Context snapshot (updated by Phase 1 audit, 2026-11-28)
 
 | Existing piece | Role today | Relation to LIV-132 |
 |---|---|---|
 | `lib/analytics/*` | PostHog client, typed `track()`, identity, mappers | Reuse; extend catalog carefully |
-| `AnalyticsProvider` | `captureScreens: true`, `captureTouches: false` | Source of today’s `$screen`; may need replace/harden |
-| `events.ts` | ~18 typed events (docs say 17 — stale) | Add only `recherche_sans_resultat`, `etat_vide_affiche` |
-| `quartier_recherche` | Tariff quartier lookup; `trouve: false` = uncovered | Keep; document as related to failed search, not renamed |
-| Failure events | `*_echoue(e)`, `erreur_api` | Stand in for `action_echouee` |
-| `EmptyStateCard` / empty UIs | livraison, stock, tarifs, notifications, conversations, tarifs-zone, rapports empty period | Targets for `etat_vide_affiche` |
-| Free-text search | stock, tarifs, conversations | Targets for `recherche_sans_resultat` |
-| `app_source: app_client` | Super property via `client.register` | Already satisfies shared-project filtering |
-| Staging PostHog | Human confirmed key present | Use for AC staging verify |
-| LIV-23 / LIV-31 | Notifications / replay | Do not implement here |
+| `AnalyticsProvider` | `captureScreens: true`, `captureTouches: false` | No stable map / dedupe — Phase 2 owns `$screen` |
+| `events.ts` | **18** typed events (`ANALYTICS_POSTHOG.md` still says 17) | Add only `recherche_sans_resultat`, `etat_vide_affiche` |
+| `track()` call sites | See [Phase 1 appendix](#phase-1-appendix--audit-2026-11-28) | All catalogued; no unnamed captures |
+| `quartier_recherche` | Tariff quartier lookup; `trouve: false` = uncovered | Keep; not a substitute for list-search empty |
+| Failure events | `demande_echouee`, `connexion_echouee`, `ajout_stock_echoue`, `document_echec`, `erreur_api` | Cover `action_echouee` |
+| Empty / search UIs | See appendix capture matrix | Phase 3 targets |
+| `app_source: app_client` | Super property via `client.register` | Already OK |
+| Staging PostHog | Human confirmed key present | Phase 5 verify |
+| LIV-23 / LIV-31 | Notifications / replay | Out of scope |
 
 ---
 
@@ -208,7 +208,7 @@ Refs LIV-132
 
 ## Phase 1 — Audit instrumentation & screen emissions
 
-**Status:** Not started  
+**Status:** Done (2026-11-28, Cursor)  
 **Goal:** Inventory current PostHog events and what `$screen` actually emits so Phase 2–3 reuse correctly.
 
 ### Scope
@@ -225,7 +225,7 @@ Refs LIV-132
 
 ### Verification
 
-- Human review of audit tables; `npm test` only if tests were touched (unlikely).
+- Human reviewed audit tables (OK 2026-11-28); no tests touched.
 
 ### Commit
 
@@ -234,6 +234,13 @@ docs(analytics): audit PostHog screens and UX event gaps [LIV-132]
 
 Refs LIV-132
 ```
+
+### Exit notes
+
+- Full matrices in [Phase 1 appendix](#phase-1-appendix--audit-2026-11-28).
+- `$screen`: autocapture only; local `node_modules` lacked `posthog-react-native` so live Activity strings were not sampled — Phase 2 should disable `captureScreens` if manual `screen()` is used, to avoid doubles.
+- Linear audit AC **not** flipped yet (also requires Phase 4 docs finalize).
+- Do **not** start Phase 2 until the human explicitly says so.
 
 ---
 
@@ -364,3 +371,88 @@ Refs LIV-132
 ## Open questions
 
 _None remaining after 2026-11-28 validation._
+
+---
+
+## Phase 1 appendix — audit (2026-11-28)
+
+### A. `track()` call sites → catalog
+
+| Event | Call site(s) |
+|---|---|
+| `demande_soumise` / `demande_echouee` / `demande_abandonnee` | `resume-produit-en-stock.tsx`, `resume-produit-ramasse.tsx` |
+| `connexion_reussie` / `connexion_echouee` | `lib/auth/AuthProvider.tsx` |
+| `annulation_demandee` | `annulation.tsx` |
+| `ajout_stock_soumis` / `ajout_stock_echoue` | `ajouter-au-stock.tsx` |
+| `quartier_recherche` | `useQuartierLookupTracking` (resume screens) |
+| `rapport_visualise` / `document_*` | `rapport-pdf-preview.tsx`, `rapports.tsx` |
+| `courses_filtrees` | `livraison.tsx` |
+| `notification_recue` / `notification_ouverte` | `usePushNotifications.ts` (LIV-23 related — leave as-is) |
+| `tarif_zone_consulte` | `tarifs-zone/[zone].tsx` |
+| `rapport_scroll` | `rapports.tsx` |
+| `conversation_ouverte` | `inbox/[id].tsx` |
+| `erreur_api` | `lib/api/client.ts` (5xx) |
+
+### B. Issue-name equivalents
+
+| Name in issue | Verdict |
+|---|---|
+| `action_echouee` | Do not add — use existing failure events above |
+| `support_contacte` | Unavailable (dropped from Linear scope) |
+| `quartier_recherche` + `trouve: false` | Keep; tariff expansion signal, not list search |
+| `recherche_sans_resultat` | **Add** in Phase 3 |
+| `etat_vide_affiche` | **Add** in Phase 3 |
+
+### C. Proposed stable `$screen` names (Phase 2)
+
+| Expo Router path | Stable name |
+|---|---|
+| `login` | `login` |
+| `(tabs)/index` | `accueil` |
+| `(tabs)/livraison` | `courses` |
+| `(tabs)/tarifs` | `tarifs` |
+| `(tabs)/rapports` | `rapports` |
+| `(tabs)/stock` | `stock` |
+| `(tabs)/inbox` | `conversations` |
+| `livraison-detail/[id]` | `livraison_detail` |
+| `expedition-detail/[id]` | `expedition_detail` |
+| `inbox/[id]` | `conversation_detail` |
+| `notifications` | `notifications` |
+| `profile` | `profil` |
+| `mes-informations` | `mes_informations` |
+| `ma-demande-livraison` | `ma_demande_livraison` |
+| `ma-demande-expedition` | `ma_demande_expedition` |
+| `demande-expedition` | `demande_expedition` |
+| `info-produit-en-stock` | `info_produit_en_stock` |
+| `info-produit-ramasse` | `info_produit_ramasse` |
+| `ajouter-les-produits` | `ajouter_les_produits` |
+| `resume-produit-en-stock` | `resume_produit_en_stock` |
+| `resume-produit-ramasse` | `resume_produit_ramasse` |
+| `confirmee` | `confirmee` |
+| `ajouter-au-stock` | `ajouter_au_stock` |
+| `confirmation-ajout-stock` | `confirmation_ajout_stock` |
+| `annulation` | `annulation` |
+| `annulation-confirmee` | `annulation_confirmee` |
+| `tarifs-zone/[zone]` | `tarifs_zone` |
+| `rapport-pdf-preview` | `rapport_pdf_preview` |
+
+Strip dynamic segments (`[id]`, `[zone]`) before lookup; unknown routes → normalized path `snake_case` fallback (no raw IDs).
+
+### D. Phase 3 capture matrix (empty / search)
+
+| Surface | Condition | Event | Properties |
+|---|---|---|---|
+| Stock | Empty catalog, no query | `etat_vide_affiche` | `ecran: stock`, `motif: liste_vide` |
+| Stock | Active search, 0 hits | `recherche_sans_resultat` | `contexte: stock` |
+| Tarifs | Catalog empty | `etat_vide_affiche` | `ecran: tarifs`, `motif: liste_vide` |
+| Tarifs | Active search, 0 hits | `recherche_sans_resultat` | `contexte: tarifs` |
+| Courses | No orders | `etat_vide_affiche` | `ecran: courses`, `motif: liste_vide` |
+| Courses | Filtered empty | `etat_vide_affiche` | `ecran: courses`, `motif: filtre` |
+| Conversations | Empty list | `etat_vide_affiche` | `ecran: conversations`, `motif: liste_vide` |
+| Conversations | Filter-only empty | `etat_vide_affiche` | `ecran: conversations`, `motif: filtre` |
+| Conversations | Active search, 0 hits | `recherche_sans_resultat` | `contexte: conversations` |
+| Notifications | Empty | `etat_vide_affiche` | `ecran: notifications`, `motif: liste_vide` |
+| Tarifs zone | No quartiers | `etat_vide_affiche` | `ecran: tarifs_zone`, `motif: liste_vide` |
+| Rapports | Period empty | `etat_vide_affiche` | `ecran: rapports`, `motif: filtre` |
+
+Mutual exclusion: if active free-text search yields empty UI → fire **only** `recherche_sans_resultat` (never both). No raw query in properties.
