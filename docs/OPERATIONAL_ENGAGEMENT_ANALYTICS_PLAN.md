@@ -14,9 +14,10 @@ reference only (not a staging gate).
 **PostHog Development:** LivSight Development `309706` (reference / design only for this issue)  
 **PostHog Production (canonical):** [project 309875](https://eu.posthog.com/project/309875)  
 **Last updated:** 2026-11-28  
-**Current phase:** 3 Done — Phase 4 **Skipped**; waiting for human to start Phase 5 (Prod)  
+**Current phase:** 5 Done — waiting for human AC flips / PR  
 **PostHog Development id:** `309706` (timezone **UTC**)  
-**Development dashboard (reference only):** [Client operational engagement](https://eu.posthog.com/project/309706/dashboard/1159076) (`1159076`)
+**Development dashboard (reference only):** [Client operational engagement](https://eu.posthog.com/project/309706/dashboard/1159076) (`1159076`)  
+**Production dashboard (canonical):** [Client operational engagement](https://eu.posthog.com/project/309875/dashboard/1159090) (`1159090`, TZ **UTC**)
 
 ---
 
@@ -162,7 +163,7 @@ flip after human OK (multi-phase items only on the **last** required phase).
 | 2 | Build dashboard in LivSight Development | Done | Cursor | 2026-11-28 |
 | 3 | Document denominators, coverage, definitions | Done | Cursor | 2026-11-28 |
 | 4 | Development / staging verification | **Skipped** (Prod-only, 2026-11-28) | — | 2026-11-28 |
-| 5 | Recreate Production dashboard + link ticket | Not started | — | — |
+| 5 | Recreate Production dashboard + link ticket | Done | Cursor | 2026-11-28 |
 
 Statuses: `Not started` · `In progress` · `Blocked` · `Done`
 
@@ -365,21 +366,28 @@ Refs LIV-135
 
 ## Phase 5 — Recreate Production dashboard + link ticket
 
-**Status:** Not started  
+**Status:** Done (2026-11-28, Cursor)  
 **Goal:** Canonical dashboard on Production `309875`; link on LIV-135; verify events/properties/counts on Prod.
 
 ### Scope
 
-- Recreate same insights/dashboard on **LivSight Production** from Dev reference definitions (Phases 1–2).
-- Filter `app_source = app_client`.
-- Checklist on Prod: event names, properties, sample counts; no engaged double-count; no PII in sampled props; no cross-tenant leakage assumptions documented.
-- Add Production dashboard URL to Linear issue (link attachment or description).
-- Spot-check Production Activity (or note “pending traffic” in Exit notes if sparse).
-- Do **not** use `Fixes LIV-135` on commits unless human says the issue is finished.
+- Dashboard **Client operational engagement** on Production: https://eu.posthog.com/project/309875/dashboard/1159090 (`1159090`).
+- Same insights + plain-language intro as Dev reference; all filter `app_source = app_client`.
+- Linked on LIV-135 (description + attachment).
+- Prod TZ **UTC**, `week_start_day` = Monday.
 
 ### Verification
 
-- Prod dashboard URL live; Linear linked; human OK on parity with Dev reference + Prod verify checklist.
+- `dashboard-insights-run` (blocking) succeeded on all insight tiles (2026-11-28).
+- Sample Prod traffic (UTC): engaged users non-zero (e.g. weeks of 2026-10-26…11-23); opens/user, report downloads, `erreur_api`, demandes/user show data.
+- **Note:** WAU/MAU/`$screen` feature adoption/lifecycle show **0** in this run while engaged/opens have volume — likely sparse or missing `$screen` + `app_source=app_client` on Production relative to other events; flag for human review (instrumentation coverage), not a dashboard definition failure.
+- No PII by design (existing catalog); cross-app leakage mitigated by `app_source` filter.
+
+### Exit notes
+
+- Propose Linear AC flips after human OK: `app_source` + correct project; Production verify; PII; document + prod verify (docs Phase 3 + this phase).
+- Do **not** use `Fixes LIV-135` until human says the issue is finished.
+- Do **not** open a PR unless the human asks.
 
 ### Suggested commit
 

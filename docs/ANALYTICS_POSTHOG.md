@@ -23,7 +23,7 @@ Intégration de PostHog (EU cloud) dans l'**app client** : `$screen` à noms sta
 | Staging / preview (EAS) → *LivSight Development* | ✅ clé présente (confirmé produit) |
 | Build production → *LivSight Production* (expo.dev, env `production`) | ✅ |
 | Dashboard engagement opérationnel (Development) | ✅ référence design seulement — [board Dev](https://eu.posthog.com/project/309706/dashboard/1159076) |
-| Dashboard engagement opérationnel (Production) | ⏳ **canonique** à créer (Phase 5 LIV-135, Prod-only) sur [309875](https://eu.posthog.com/project/309875) |
+| Dashboard engagement opérationnel (Production) | ✅ **canonique** — [board Prod](https://eu.posthog.com/project/309875/dashboard/1159090) (`1159090`, TZ UTC) |
 
 **Après rollout store :** confirmer sur *LivSight Production → Activity* que les events arrivent avec `app_source: app_client`.
 
@@ -153,7 +153,7 @@ EXPO_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
 ## Dashboard engagement opérationnel (LIV-135)
 
 Board PostHog pour mesurer l'usage opérationnel réel (pas seulement les opens).  
-**Production (canonique, Prod-only) :** à créer sur [309875](https://eu.posthog.com/project/309875) — pas de gate staging.  
+**Production (canonique, Prod-only) :** [Client operational engagement](https://eu.posthog.com/project/309875/dashboard/1159090) (projet `309875`, TZ **UTC**, `week_start_day` = Monday).  
 **Development (référence design) :** [Client operational engagement](https://eu.posthog.com/project/309706/dashboard/1159076) (projet `309706`, TZ **UTC**).
 
 ### Règles communes
@@ -205,4 +205,4 @@ npm test -- --testPathPattern=lib/analytics
 1. SDK + env + identité + catalogue métier/features/profondeur.
 2. Projets partagés Development/Production + `app_source: app_client`.
 3. **LIV-132** — `$screen` stable + dedupe ; `recherche_sans_resultat` / `etat_vide_affiche` ; docs alias / indisponibles.
-4. **LIV-135** — dashboard engagement opérationnel **Prod-only** ; métriques documentées ; Dev board = référence ; Production Phase 5.
+4. **LIV-135** — dashboard engagement opérationnel **Prod-only** ([1159090](https://eu.posthog.com/project/309875/dashboard/1159090)) ; métriques documentées ; Dev board = référence.
