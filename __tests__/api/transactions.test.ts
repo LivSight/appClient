@@ -289,34 +289,61 @@ describe("transactions API", () => {
   });
 
   describe("listTransactions", () => {
-    it("GETs /api/users/transactions?keycloakId= for the session user", async () => {
-      mockApiResponse(200, [
-        {
-          package_name: "Mine",
-          user_id: 3,
-          type: "delivery",
-          transactionReference: "LVS-AAA",
-          destination: { street: "Bastos" },
-        },
-        {
-          package_name: "WhatsApp order",
-          user_id: 3,
-          type: "delivery",
-          source: "stock",
-          transactionReference: "LVS-BBIHDBBBEF",
-          destination: { street: "Makepe" },
-        },
-      ]);
+    it("GETs the paginated /api/transactions?mine=true with the X-User-Id header", async () => {
+      mockApiResponse(200, {
+        items: [
+          {
+            package_name: "Mine",
+            user_id: 3,
+            type: "delivery",
+            transactionReference: "LVS-AAA",
+            destination: { street: "Bastos" },
+          },
+          {
+            package_name: "WhatsApp order",
+            user_id: 3,
+            type: "delivery",
+            source: "stock",
+            transactionReference: "LVS-BBIHDBBBEF",
+            destination: { street: "Makepe" },
+          },
+        ],
+        page: 0,
+        limit: 50,
+        total: 2,
+        totalPages: 1,
+        hasNext: false,
+      });
 
       const result = await listTransactions();
 
-      expect(apiFetch).toHaveBeenCalledWith(
-        `${API_BASE}/api/users/transactions?keycloakId=${encodeURIComponent(KEYCLOAK_ID)}`,
-        { method: "GET" },
-      );
+      expect(apiFetch).toHaveBeenCalledWith(`${API_BASE}/api/transactions?mine=true`, {
+        method: "GET",
+        headers: { "X-User-Id": KEYCLOAK_ID },
+      });
       expect(result).toHaveLength(2);
       expect(result[0].package_name).toBe("Mine");
       expect(result[1].transactionReference).toBe("LVS-BBIHDBBBEF");
+    });
+
+    it("passes limit and page as query params", async () => {
+      mockApiResponse(200, { items: [], page: 1, limit: 25, total: 0, totalPages: 0, hasNext: false });
+
+      await listTransactions({ limit: 25, page: 1 });
+
+      expect(apiFetch).toHaveBeenCalledWith(`${API_BASE}/api/transactions?mine=true&limit=25&page=1`, {
+        method: "GET",
+        headers: { "X-User-Id": KEYCLOAK_ID },
+      });
+    });
+
+    it("still accepts a plain array response (legacy shape)", async () => {
+      mockApiResponse(200, [{ package_name: "Legacy", transactionReference: "LVS-OLD" }]);
+
+      const result = await listTransactions();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].transactionReference).toBe("LVS-OLD");
     });
 
     it("throws when there is no authenticated session", async () => {

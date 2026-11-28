@@ -26,6 +26,20 @@
         "buildType": "apk"
       }
     },
+    "staging": {
+      "autoIncrement": true,
+      "distribution": "store",
+      "environment": "preview",
+      "env": {
+        "APP_VARIANT": "staging-store",
+        "EXPO_PUBLIC_GATEWAY_URL": "https://staging-gateway.livsight.com",
+        "EXPO_PUBLIC_ENABLE_PUSH": "true",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://eu.i.posthog.com"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "distribution": "store",
@@ -42,6 +56,9 @@
   },
   "submit": {
     "production": {
+      "ios": {
+        "ascAppId": "6788786430"
+      },
       "android": {
         "serviceAccountKeyPath": "$GOOGLE_PLAY_SERVICE_ACCOUNT_KEY",
         "track": "internal"

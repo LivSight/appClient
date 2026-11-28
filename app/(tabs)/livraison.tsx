@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import LoadingState from "@/components/LoadingState";
 import { track } from "@/lib/analytics/events";
+import { useEmptyUxTracking } from "@/lib/analytics/useEmptyUxTracking";
 import { View, Pressable } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
@@ -21,6 +22,7 @@ import {
 } from "@/lib/api/transactionUi";
 import { shouldRefreshLivraisonList } from "@/lib/push/notificationRouting";
 import { usePushRefresh } from "@/lib/push/usePushRefresh";
+import { logger } from "@/lib/logger";
 
 export default function LivraisonScreen() {
   const { filter } = useLocalSearchParams<{ filter?: string }>();
@@ -39,25 +41,42 @@ export default function LivraisonScreen() {
   const [error, setError] = useState<string | null>(null);
   const [allOrders, setAllOrders] = useState<TransactionCardItem[]>([]);
 
-  const loadTransactions = useCallback(async (mode: "initial" | "refresh" = "initial") => {
+  const loadTransactions = useCallback(async (mode: "initial" | "refresh" | "silent" = "initial") => {
+    const t0 = Date.now();
+    logger.info("perf", "livraison:loadTransactions start", { mode });
     try {
       if (mode === "initial") setLoading(true);
       if (mode === "refresh") setRefreshing(true);
       setError(null);
 
-      const data = await listTransactions();
+      // Latest 200 (backend page cap) — status/date filters stay client-side over this window.
+      const data = await listTransactions({ limit: 200 });
+      const tFetch = Date.now();
       setAllOrders(transactionsToCardItems(data));
+      logger.info("perf", "livraison:loadTransactions done", {
+        mode,
+        fetchMs: tFetch - t0,
+        mapMs: Date.now() - tFetch,
+        totalMs: Date.now() - t0,
+        count: data.length,
+      });
     } catch (e: unknown) {
+      logger.info("perf", "livraison:loadTransactions failed", { mode, totalMs: Date.now() - t0 });
       setError(String(e instanceof Error ? e.message : e ?? "Erreur"));
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (mode === "initial") setLoading(false);
+      if (mode === "refresh") setRefreshing(false);
     }
   }, []);
 
+  // Full loader only on the very first load; later tab focuses refresh silently
+  // so the existing list stays on screen instead of flashing a spinner.
+  const hasLoadedOnceRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      void loadTransactions("initial");
+      void loadTransactions(hasLoadedOnceRef.current ? "silent" : "initial").finally(() => {
+        hasLoadedOnceRef.current = true;
+      });
     }, [loadTransactions]),
   );
 
@@ -78,6 +97,13 @@ export default function LivraisonScreen() {
   );
   const hasAnyOrders = allOrders.length > 0;
   const isFilteredEmpty = hasAnyOrders && orders.length === 0;
+
+  useEmptyUxTracking({
+    ecran: "courses",
+    ready: !loading && !error,
+    isEmpty: orders.length === 0,
+    hasActiveFilters: isFilteredEmpty,
+  });
 
   return (
     <ScreenLayout

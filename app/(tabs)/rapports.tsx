@@ -12,6 +12,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { track } from "@/lib/analytics/events";
 import { errorLabel, reachedScrollMilestones } from "@/lib/analytics/mappers";
+import { useEmptyUxTracking } from "@/lib/analytics/useEmptyUxTracking";
 import { useFocusEffect } from "expo-router/react-navigation";
 import ScreenLayout from "../../components/ScreenLayout";
 import MetricCard from "../../components/MetricCard";
@@ -32,6 +33,9 @@ import {
   type ReportKind,
   type SettlementReport,
 } from "@/lib/api/reports";
+import DebtRecoveryCard from "@/components/DebtRecoveryCard";
+import { fetchClientBalance, fetchSettlementDebt } from "@/lib/api/clientBalance";
+import { shouldShowDebtCard, type ClientBalance, type SettlementDebt } from "@/lib/reports/debtDisplay";
 import { downloadAndShareReportPdf, isPdfPreviewAvailable, PDF_MODULES_UNAVAILABLE_MESSAGE } from "@/lib/reports/reportPdf";
 import {
   dateRangeLabel,
@@ -185,6 +189,8 @@ export default function RapportsScreen() {
   const [expeditionReport, setExpeditionReport] = useState<ExpeditionReport | null>(null);
   const [previousExpeditionReport, setPreviousExpeditionReport] = useState<ExpeditionReport | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState<ReportKind | null>(null);
+  const [clientBalance, setClientBalance] = useState<ClientBalance | null>(null);
+  const [settlementDebt, setSettlementDebt] = useState<SettlementDebt | null>(null);
 
   const period = useMemo(() => {
     const bounds = resolveReportPeriodBounds({ range, now: new Date(), customStart, customEnd });
@@ -198,6 +204,8 @@ export default function RapportsScreen() {
 
   const loadReports = useCallback(
     async (mode: "initial" | "refresh" | "silent" = "initial") => {
+      const t0 = Date.now();
+      logger.info("perf", "rapports:loadReports start", { mode, start: period.start, end: period.end });
       try {
         if (mode === "initial") setLoading(true);
         if (mode === "refresh") setRefreshing(true);
@@ -211,10 +219,21 @@ export default function RapportsScreen() {
             return null;
           });
 
-        const [settlementCurrent, settlementPrevious] = await Promise.all([
+        // Dette à récupérer : best-effort aussi. Sans ces appels la carte Solde reste inchangée.
+        const [settlementCurrent, settlementPrevious, balanceResult, settlementDebtResult] = await Promise.all([
           fetchSettlementSafe(period.start, period.end),
           fetchSettlementSafe(period.prevStart, period.prevEnd),
+          fetchClientBalance().catch((e: unknown) => {
+            logger.warn("rapports", "client balance unavailable", e);
+            return null;
+          }),
+          fetchSettlementDebt(period.start, period.end).catch((e: unknown) => {
+            logger.warn("rapports", "settlement debt unavailable", e);
+            return null;
+          }),
         ]);
+        setClientBalance(balanceResult);
+        setSettlementDebt(settlementDebtResult);
 
         if (settlementCurrent) {
           setSettlement(settlementCurrent);
@@ -244,7 +263,13 @@ export default function RapportsScreen() {
           setExpeditionReport(expeditions);
           setPreviousExpeditionReport(previousExpeditions);
         }
+        logger.info("perf", "rapports:loadReports done", {
+          mode,
+          totalMs: Date.now() - t0,
+          viaSettlement: Boolean(settlementCurrent),
+        });
       } catch (e: unknown) {
+        logger.info("perf", "rapports:loadReports failed", { mode, totalMs: Date.now() - t0 });
         logger.warn("rapports", "load failed", e);
         setError("Impossible de charger vos rapports. Vérifiez votre connexion et réessayez.");
       } finally {
@@ -301,6 +326,13 @@ export default function RapportsScreen() {
   const hasDeliveries = safeCount(report?.delivery_count) > 0;
   const hasExpeditions = safeCount(expeditionReport?.expedition_count) > 0;
   const hasActivity = hasDeliveries || hasExpeditions;
+
+  useEmptyUxTracking({
+    ecran: "rapports",
+    ready: !loading && !error,
+    isEmpty: !hasActivity,
+    hasActiveFilters: true,
+  });
 
   const pdfPreviewAvailable = useMemo(() => isPdfPreviewAvailable(), []);
 
@@ -469,6 +501,9 @@ export default function RapportsScreen() {
             />
           </View>
         </View>
+        {shouldShowDebtCard(clientBalance, settlementDebt) ? (
+          <DebtRecoveryCard balance={clientBalance} settlement={settlementDebt} />
+        ) : null}
       </View>
       ) : null}
 

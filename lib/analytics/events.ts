@@ -35,6 +35,13 @@ export type AnalyticsEvents = {
   rapport_scroll: { profondeur: 50 | 100 };
   conversation_ouverte: undefined;
   erreur_api: { endpoint: string; statut: number };
+
+  // P4 — UX empty / search (LIV-132)
+  recherche_sans_resultat: { contexte: "stock" | "tarifs" | "conversations" };
+  etat_vide_affiche: {
+    ecran: "stock" | "tarifs" | "courses" | "conversations" | "notifications" | "tarifs_zone" | "rapports";
+    motif: "liste_vide" | "filtre";
+  };
 };
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

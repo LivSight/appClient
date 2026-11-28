@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { View, Pressable } from "react-native";
 import { router } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
@@ -20,6 +20,7 @@ import {
 } from "@/lib/api/transactionUi";
 import { shouldRefreshConversations } from "@/lib/push/notificationRouting";
 import { usePushRefresh } from "@/lib/push/usePushRefresh";
+import { useEmptyUxTracking } from "@/lib/analytics/useEmptyUxTracking";
 import { useUnreadCount } from "@/lib/unreadCount";
 
 type ConversationStatusFilter = "Toutes" | "Non lues" | "Livraisons" | "Expéditions";
@@ -52,7 +53,7 @@ export default function ConversationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadConversations = useCallback(async (mode: "initial" | "refresh" = "initial") => {
+  const loadConversations = useCallback(async (mode: "initial" | "refresh" | "silent" = "initial") => {
     try {
       if (mode === "initial") setLoading(true);
       if (mode === "refresh") setRefreshing(true);
@@ -64,14 +65,19 @@ export default function ConversationsScreen() {
     } catch (e: unknown) {
       setError(String(e instanceof Error ? e.message : e ?? "Erreur"));
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (mode === "initial") setLoading(false);
+      if (mode === "refresh") setRefreshing(false);
     }
   }, [setTotalUnread]);
 
+  // Full loader only on the very first load; later tab focuses refresh silently
+  // so the existing conversations stay on screen instead of flashing a spinner.
+  const hasLoadedOnceRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      void loadConversations("initial");
+      void loadConversations(hasLoadedOnceRef.current ? "silent" : "initial").finally(() => {
+        hasLoadedOnceRef.current = true;
+      });
     }, [loadConversations]),
   );
 
@@ -92,7 +98,17 @@ export default function ConversationsScreen() {
     );
   }, [conversations, query, statusFilter, dateFilter]);
 
-  const hasActiveFilters = query.trim().length > 0 || statusFilter !== "Toutes" || dateFilter !== "Toutes dates";
+  const hasActiveSearch = query.trim().length > 0;
+  const hasActiveFilters = statusFilter !== "Toutes" || dateFilter !== "Toutes dates";
+  const hasActiveFiltersOrSearch = hasActiveSearch || hasActiveFilters;
+
+  useEmptyUxTracking({
+    ecran: "conversations",
+    ready: !loading && !error,
+    isEmpty: filtered.length === 0,
+    hasActiveSearch,
+    hasActiveFilters,
+  });
 
   return (
     <ScreenLayout
@@ -188,16 +204,16 @@ export default function ConversationsScreen() {
           </View>
         ) : filtered.length === 0 ? (
           <EmptyStateCard
-            label={hasActiveFilters ? "RECHERCHE" : "BIENVENUE"}
+            label={hasActiveFiltersOrSearch ? "RECHERCHE" : "BIENVENUE"}
             iconName="solar:chat-round-dots-bold"
-            title={hasActiveFilters ? "Aucun résultat" : "Aucune conversation pour l’instant"}
+            title={hasActiveFiltersOrSearch ? "Aucun résultat" : "Aucune conversation pour l’instant"}
             subtitle={
-              hasActiveFilters
+              hasActiveFiltersOrSearch
                 ? "Essayez avec d'autres filtres ou un autre mot-clé."
                 : "Les conversations apparaissent ici une fois qu'un échange a été ouvert sur une commande."
             }
             ctas={
-              hasActiveFilters
+              hasActiveFiltersOrSearch
                 ? [
                     {
                       label: "Réinitialiser les filtres",

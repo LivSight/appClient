@@ -8,6 +8,7 @@ import "../global.css";
 import { usePushNotifications } from "@/lib/push/usePushNotifications";
 import { AnalyticsProvider } from "@/lib/analytics/AnalyticsProvider";
 import { useAnalyticsIdentity } from "@/lib/analytics/useAnalyticsIdentity";
+import { useScreenAnalytics } from "@/lib/analytics/useScreenAnalytics";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { useAuthGuard } from "@/lib/auth/useAuthGuard";
 import AppBackground from "@/components/AppBackground";
@@ -43,6 +44,7 @@ function RootLayoutNav() {
 
   usePushNotifications(pathname, showSplash);
   useAnalyticsIdentity();
+  useScreenAnalytics(pathname);
 
   if (showSplash) {
     return <LoadingState fullScreen />;

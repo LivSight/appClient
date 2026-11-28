@@ -19,6 +19,7 @@
     "eas:build:dev:ios": "npx eas-cli build --profile development --platform ios",
     "eas:build:preview:android": "npx eas-cli build --profile preview --platform android",
     "eas:build:preview:ios": "npx eas-cli build --profile preview --platform ios",
+    "eas:build:staging:ios": "npx eas-cli build --profile staging --platform ios",
     "eas:build:production": "npx eas-cli build --profile production --platform all",
     "prepare": "husky"
   },
