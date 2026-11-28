@@ -9,7 +9,7 @@ events or inventing support contact tracking we do not have.
 **Base for PRs:** `staging`  
 **Living catalog:** [`docs/ANALYTICS_POSTHOG.md`](./ANALYTICS_POSTHOG.md) + `lib/analytics/events.ts`  
 **Last updated:** 2026-11-28  
-**Current phase:** 4 (document catalog) — wait for human before editing docs
+**Current phase:** 5 (staging verification) — wait for human before checklist
 
 ---
 
@@ -143,7 +143,7 @@ flip after human OK (multi-phase items only on the **last** required phase).
 | 1 | Audit instrumentation & screen emissions | Done | Cursor | 2026-11-28 |
 | 2 | Stable `$screen` map + dedupe | Done | Cursor | 2026-11-28 |
 | 3 | UX events: empty + search (TDD) | Done | Cursor | 2026-11-28 |
-| 4 | Document catalog, aliases, unavailable | Not started | — | — |
+| 4 | Document catalog, aliases, unavailable | Done | Cursor | 2026-11-28 |
 | 5 | Staging verification checklist | Not started | — | — |
 
 Statuses: `Not started` · `In progress` · `Blocked` · `Done`
@@ -321,7 +321,7 @@ Refs LIV-132
 
 ## Phase 4 — Document catalog, aliases, unavailable
 
-**Status:** Not started  
+**Status:** Done (2026-11-28, Cursor)  
 **Goal:** Living docs match reality for product/insights use.
 
 ### Scope
@@ -332,7 +332,7 @@ Refs LIV-132
 
 ### Verification
 
-- Human review of docs; no behavior change.
+- Docs updated; no app behavior change. Human review of `ANALYTICS_POSTHOG.md`.
 
 ### Commit
 
@@ -341,6 +341,12 @@ docs(analytics): document screen UX events and aliases [LIV-132]
 
 Refs LIV-132
 ```
+
+### Exit notes
+
+- Living catalog + aliases + unavailable in `docs/ANALYTICS_POSTHOG.md`; index links plan.
+- Linear audit AC may be proposed for flip together with Phase 4 (map: Phase 1 + 4).
+- Do **not** start Phase 5 until the human explicitly says so.
 
 ---
 

@@ -112,4 +112,4 @@ docs/                  # Documentation technique (index : docs/README.md)
 | [CLAUDE.md](CLAUDE.md) | Architecture détaillée (auth, API, navigation, design system) |
 | [docs/README.md](docs/README.md) | Index de toute la documentation technique |
 | [docs/BUILD_CI.md](docs/BUILD_CI.md) | Pipeline CI/CD, profils EAS, secrets |
-| [docs/ANALYTICS_POSTHOG.md](docs/ANALYTICS_POSTHOG.md) | Analytics PostHog : architecture, events, environnements dev/prod |
+| [docs/ANALYTICS_POSTHOG.md](docs/ANALYTICS_POSTHOG.md) | Analytics PostHog : `$screen`, 20 events, environnements |

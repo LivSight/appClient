@@ -2,7 +2,8 @@
 
 | Fichier | Contenu |
 |---------|---------|
-| [ANALYTICS_POSTHOG.md](ANALYTICS_POSTHOG.md) | Analytics PostHog : architecture, séparation dev/prod, catalogue des 17 events |
+| [ANALYTICS_POSTHOG.md](ANALYTICS_POSTHOG.md) | Analytics PostHog : architecture, `$screen`, catalogue des 20 events, alias UX |
+| [SCREEN_UX_ANALYTICS_PLAN.md](SCREEN_UX_ANALYTICS_PLAN.md) | Plan LIV-132 — navigation `$screen` + UX empty/search |
 | [api-transactions.md](api-transactions.md) | Contrat API transactions (endpoints, payloads, statuts) |
 | [auth-tdd-phases.md](auth-tdd-phases.md) | Phases TDD de l'authentification Keycloak |
 | [BUILD_CI.md](BUILD_CI.md) | Pipeline CI/CD, profils EAS, secrets, workflows courants |
