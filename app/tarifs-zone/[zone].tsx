@@ -3,6 +3,7 @@ import LoadingState from "@/components/LoadingState";
 import { Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { track } from "@/lib/analytics/events";
+import { useEmptyUxTracking } from "@/lib/analytics/useEmptyUxTracking";
 import { useFocusEffect } from "expo-router/react-navigation";
 import AppText from "@/components/AppText";
 import EmptyStateCard from "@/components/EmptyStateCard";
@@ -73,6 +74,12 @@ export default function TarifsZoneDetailScreen() {
       void loadZone("initial");
     }, [loadZone]),
   );
+
+  useEmptyUxTracking({
+    ecran: "tarifs_zone",
+    ready: !loading && !error && zoneData != null,
+    isEmpty: neighborhoodNames.length === 0,
+  });
 
   const label = zoneData ? zoneDisplayLabel(zoneData) : "ZONE";
   const distanceLabel = zoneData?.distance_label?.trim() && zoneData.distance_label !== "N/A" ? zoneData.distance_label : "—";

@@ -26,6 +26,7 @@ import {
 import { sortStockItemsByName } from "@/lib/stock/sortStockItems";
 import { stockProductRowsFromPackages } from "@/lib/stock/stockProductRows";
 import { stockSummaryFromItems } from "@/lib/stock/stockSummary";
+import { useEmptyUxTracking } from "@/lib/analytics/useEmptyUxTracking";
 import { logger } from "@/lib/logger";
 
 /** Set to true to show the "Ajouter un produit" CTAs again. */
@@ -134,6 +135,14 @@ export default function StockScreen() {
   const sortedItems = useMemo(() => sortStockItemsByName(items), [items]);
   const filteredItems = useMemo(() => filterStockItems(sortedItems, query), [sortedItems, query]);
   const hasActiveSearch = query.trim().length > 0;
+  const searchMiss = items.length > 0 && filteredItems.length === 0 && hasActiveSearch;
+
+  useEmptyUxTracking({
+    ecran: "stock",
+    ready: !loading && !error,
+    isEmpty: items.length === 0 || filteredItems.length === 0,
+    hasActiveSearch: searchMiss,
+  });
 
   const {
     visible: visibleItems,

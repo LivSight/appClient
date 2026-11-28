@@ -12,6 +12,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { track } from "@/lib/analytics/events";
 import { errorLabel, reachedScrollMilestones } from "@/lib/analytics/mappers";
+import { useEmptyUxTracking } from "@/lib/analytics/useEmptyUxTracking";
 import { useFocusEffect } from "expo-router/react-navigation";
 import ScreenLayout from "../../components/ScreenLayout";
 import MetricCard from "../../components/MetricCard";
@@ -325,6 +326,13 @@ export default function RapportsScreen() {
   const hasDeliveries = safeCount(report?.delivery_count) > 0;
   const hasExpeditions = safeCount(expeditionReport?.expedition_count) > 0;
   const hasActivity = hasDeliveries || hasExpeditions;
+
+  useEmptyUxTracking({
+    ecran: "rapports",
+    ready: !loading && !error,
+    isEmpty: !hasActivity,
+    hasActiveFilters: true,
+  });
 
   const pdfPreviewAvailable = useMemo(() => isPdfPreviewAvailable(), []);
 

@@ -18,6 +18,7 @@ import {
   routeForNotification,
   type InAppNotification,
 } from "@/lib/notifications/notificationUi";
+import { useEmptyUxTracking } from "@/lib/analytics/useEmptyUxTracking";
 import { usePullToRefresh } from "@/lib/hooks/usePullToRefresh";
 import { logger } from "@/lib/logger";
 import { colors, fonts, radii } from "@/theme/tokens";
@@ -153,6 +154,12 @@ export default function NotificationsScreen() {
       void load("initial");
     }, [load]),
   );
+
+  useEmptyUxTracking({
+    ecran: "notifications",
+    ready: hasLoadedOnce && !loading && !(error && items.length === 0),
+    isEmpty: items.length === 0,
+  });
 
   const onItemPress = useCallback(async (item: InAppNotification) => {
     setItems((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)));

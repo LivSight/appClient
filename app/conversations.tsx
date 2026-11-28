@@ -20,6 +20,7 @@ import {
 } from "@/lib/api/transactionUi";
 import { shouldRefreshConversations } from "@/lib/push/notificationRouting";
 import { usePushRefresh } from "@/lib/push/usePushRefresh";
+import { useEmptyUxTracking } from "@/lib/analytics/useEmptyUxTracking";
 import { useUnreadCount } from "@/lib/unreadCount";
 
 type ConversationStatusFilter = "Toutes" | "Non lues" | "Livraisons" | "Expéditions";
@@ -97,7 +98,17 @@ export default function ConversationsScreen() {
     );
   }, [conversations, query, statusFilter, dateFilter]);
 
-  const hasActiveFilters = query.trim().length > 0 || statusFilter !== "Toutes" || dateFilter !== "Toutes dates";
+  const hasActiveSearch = query.trim().length > 0;
+  const hasActiveFilters = statusFilter !== "Toutes" || dateFilter !== "Toutes dates";
+  const hasActiveFiltersOrSearch = hasActiveSearch || hasActiveFilters;
+
+  useEmptyUxTracking({
+    ecran: "conversations",
+    ready: !loading && !error,
+    isEmpty: filtered.length === 0,
+    hasActiveSearch,
+    hasActiveFilters,
+  });
 
   return (
     <ScreenLayout
@@ -193,16 +204,16 @@ export default function ConversationsScreen() {
           </View>
         ) : filtered.length === 0 ? (
           <EmptyStateCard
-            label={hasActiveFilters ? "RECHERCHE" : "BIENVENUE"}
+            label={hasActiveFiltersOrSearch ? "RECHERCHE" : "BIENVENUE"}
             iconName="solar:chat-round-dots-bold"
-            title={hasActiveFilters ? "Aucun résultat" : "Aucune conversation pour l’instant"}
+            title={hasActiveFiltersOrSearch ? "Aucun résultat" : "Aucune conversation pour l’instant"}
             subtitle={
-              hasActiveFilters
+              hasActiveFiltersOrSearch
                 ? "Essayez avec d'autres filtres ou un autre mot-clé."
                 : "Les conversations apparaissent ici une fois qu'un échange a été ouvert sur une commande."
             }
             ctas={
-              hasActiveFilters
+              hasActiveFiltersOrSearch
                 ? [
                     {
                       label: "Réinitialiser les filtres",
