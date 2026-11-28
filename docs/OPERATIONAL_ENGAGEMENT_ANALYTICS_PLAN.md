@@ -12,8 +12,9 @@ Development then recreated in Production.
 **PostHog Development:** LivSight Development (local + staging/preview keys)  
 **PostHog Production:** [project 309875](https://eu.posthog.com/project/309875)  
 **Last updated:** 2026-11-28  
-**Current phase:** 1 Done — waiting for human to start Phase 2  
-**PostHog Development id:** `309706` (timezone **UTC**)
+**Current phase:** 2 Done — waiting for human to start Phase 3  
+**PostHog Development id:** `309706` (timezone **UTC**)  
+**Development dashboard:** [Client operational engagement](https://eu.posthog.com/project/309706/dashboard/1159076) (`1159076`)
 
 ---
 
@@ -156,7 +157,7 @@ flip after human OK (multi-phase items only on the **last** required phase).
 |---|---|---|---|---|
 | 0 | Preconditions & Linear gate | Done (branch + plan) | Cursor | 2026-11-28 |
 | 1 | Audit instrumentation ↔ dashboard metrics | Done | Cursor | 2026-11-28 |
-| 2 | Build dashboard in LivSight Development | Not started | — | — |
+| 2 | Build dashboard in LivSight Development | Done | Cursor | 2026-11-28 |
 | 3 | Document denominators, coverage, definitions | Not started | — | — |
 | 4 | Development / staging verification | Not started | — | — |
 | 5 | Recreate Production dashboard + link ticket | Not started | — | — |
@@ -284,25 +285,28 @@ Refs LIV-135
 
 ## Phase 2 — Build dashboard in LivSight Development
 
-**Status:** Not started  
+**Status:** Done (2026-11-28, Cursor) — human OK on board + plain-language intro  
 **Goal:** Create the operational engagement dashboard + insights on **LivSight Development**.
 
 ### Scope
 
-- Switch PostHog MCP / UI to Development project.
-- Create dashboard and insights per approved Phase 1 formulas (WAU/MAU, engaged, adoption, active days, retention, inactive, opens/user, downloads, API reliability, optional requests/user).
-- Text tiles for denominators / caveats (user-facing short; agent_context for event names).
-- Filter all tiles: `app_source = app_client`.
-- Record Development dashboard URL in Exit notes.
+- Dashboard **Client operational engagement** on project `309706`: https://eu.posthog.com/project/309706/dashboard/1159076
+- Insights: WAU, MAU, weekly engaged, lifecycle (dormant ≈ inactive), feature adoption by screen, stickiness, 30-day retention, opens/user, report downloads, API 5xx count, demandes/user.
+- Intro text tile: **How to read this board** (plain language; technical event names in `agent_context` only).
+- All insights filter `app_source = app_client`.
 
 ### Verification
 
-- `dashboard-insights-run` (or Activity spot-check) returns coherent data for recent Development traffic.
-- Human reviews dashboard before Phase 3.
+- `dashboard-insights-run` returned results (sparse Dev traffic; downloads/demandes often 0 — expected).
+- Human reviewed; intro rewritten less technical (2026-11-28).
+
+### Exit notes
+
+- **No app code** this phase.
+- **Linear ACs:** none flipped (staging verify = Phase 4; docs = Phase 3).
+- Do **not** start Phase 3 until the human explicitly says so.
 
 ### Suggested commit
-
-Usually none until Phase 3 docs (PostHog-only). If recording URL in this MD:
 
 ```text
 docs(analytics): record Development engagement dashboard URL [LIV-135]
@@ -411,4 +415,4 @@ Use `Fixes LIV-135` only when human confirms the issue is complete.
 | Deliveries per user in/out | **Resolved** — in as Demandes soumises / user |
 | API reliability shape | **Resolved** — `erreur_api` count, not % |
 | New events for v1 | **Resolved** — none |
-| Dashboard language (EN/FR) | **Phase 2** (propose once) |
+| Dashboard language (EN/FR) | **Resolved** — English plain-language intro + insight titles |
